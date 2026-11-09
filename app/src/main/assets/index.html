@@ -1,0 +1,1359 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1">
+<title>Sprite Puppet Maker</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@400;500;600;700&family=JetBrains+Mono:wght@400;600&display=swap" rel="stylesheet">
+<script async src="https://cdnjs.cloudflare.com/ajax/libs/jszip/3.10.1/jszip.min.js"></script>
+<style>
+:root{--bg:#0d0e12;--panel:#15171d;--panel2:#1c1f27;--line:#2a2e39;--text:#ece9e3;--mute:#9497a3;--acc:#ff8a3d;--acc2:#5ec8ff;--ok:#46d18a;--vio:#b591ff;--warn:#ffcc4d;--bad:#ff5d6c}
+*{box-sizing:border-box}
+html,body{margin:0;background:var(--bg);color:var(--text);font:14px/1.45 'Space Grotesk',system-ui,sans-serif;-webkit-tap-highlight-color:transparent}
+button,select,input,textarea{font:inherit;color:inherit}
+.app{display:grid;grid-template-columns:1fr}
+@media(min-width:980px){.app{grid-template-columns:minmax(440px,1.05fr) 1fr;height:100vh;overflow:hidden}.stage{height:100vh;display:flex;flex-direction:column}.side{height:100vh;overflow:auto}}
+header{display:flex;align-items:center;gap:10px;padding:10px 14px;border-bottom:1px solid var(--line)}
+.logo{width:28px;height:28px;border-radius:7px;background:conic-gradient(from 200deg,var(--acc),var(--vio),var(--acc2),var(--acc));display:grid;place-items:center;font-weight:700;color:#111;font-size:13px}
+header h1{font-size:16px;margin:0;font-weight:700;letter-spacing:.2px}
+.pill{margin-left:auto;font:600 12px 'JetBrains Mono',monospace;padding:4px 9px;border-radius:99px;background:#16301f;color:var(--ok);border:1px solid #23523a;white-space:nowrap}
+.stage{background:#0a0b0e;border-bottom:1px solid var(--line)}
+.canvasWrap{position:relative;flex:1;min-height:0}
+#preview{display:block;width:100%;touch-action:none}
+.checker{background:repeating-conic-gradient(#1d2028 0 25%,#16181e 0 50%) 0 0/22px 22px}
+.ctrls{display:flex;flex-wrap:wrap;gap:6px;padding:8px 10px;align-items:center;border-top:1px solid var(--line)}
+.seg{display:inline-flex;border:1px solid var(--line);border-radius:9px;overflow:hidden}
+.seg button{background:none;border:0;padding:6px 10px;cursor:pointer;color:var(--mute)}
+.seg button.on{background:var(--panel2);color:var(--text)}
+.btn{background:var(--panel2);border:1px solid var(--line);border-radius:9px;padding:7px 12px;cursor:pointer;white-space:nowrap}
+.btn:hover{border-color:#3a3f4d}
+.btn.pri{background:var(--acc);border-color:var(--acc);color:#1a1006;font-weight:600}
+.btn.blue{background:#123247;border-color:#1f5576;color:#bfe9ff}
+.btn.sm{padding:4px 9px;font-size:12.5px}
+.btn:disabled{opacity:.45;cursor:not-allowed}
+select{background:var(--panel2);border:1px solid var(--line);border-radius:9px;padding:6px 8px}
+.tabs{display:flex;overflow-x:auto;border-bottom:1px solid var(--line);background:var(--panel);position:sticky;top:0;z-index:5}
+.tabs button{flex:1;min-width:max-content;background:none;border:0;border-bottom:2px solid transparent;padding:11px 14px;color:var(--mute);cursor:pointer;font-weight:500}
+.tabs button.on{color:var(--text);border-bottom-color:var(--acc)}
+.panel{display:none;padding:14px 14px 40px}
+.panel.on{display:block}
+h3{font-size:13px;text-transform:uppercase;letter-spacing:1.2px;color:var(--mute);margin:20px 0 8px;font-weight:600}
+h3:first-child{margin-top:4px}
+.card{background:var(--panel);border:1px solid var(--line);border-radius:12px;padding:12px;margin-bottom:10px}
+.row{display:flex;gap:8px;align-items:center;flex-wrap:wrap}
+.field{display:grid;grid-template-columns:118px 1fr 46px;gap:8px;align-items:center;margin:6px 0}
+.field label{color:var(--mute);font-size:13px}
+.field output{font:12px 'JetBrains Mono',monospace;color:var(--mute);text-align:right}
+input[type=range]{width:100%;accent-color:var(--acc)}
+input[type=text],textarea{width:100%;background:var(--panel2);border:1px solid var(--line);border-radius:9px;padding:8px 10px}
+textarea{min-height:70px;resize:vertical}
+.hint{color:var(--mute);font-size:12.5px;margin:6px 0}
+.grid{border-collapse:separate;border-spacing:3px;width:100%}
+.grid th{font:600 11px 'JetBrains Mono',monospace;color:var(--mute);padding:2px}
+.grid td.lbl{font-size:12px;color:var(--mute);white-space:nowrap;padding-right:4px}
+.cell{width:100%;aspect-ratio:1;border-radius:7px;border:2px solid #3a3d47;cursor:pointer;display:block;max-width:56px}
+.cell.mannequin{border-color:#3a3d47}.cell.photo{border-color:var(--ok)}.cell.upload{border-color:var(--acc2)}.cell.mirror{border-color:var(--vio)}
+.legend{display:flex;gap:12px;flex-wrap:wrap;font-size:12px;color:var(--mute)}
+.legend i{display:inline-block;width:10px;height:10px;border-radius:3px;margin-right:5px;vertical-align:-1px}
+.dirs{display:grid;grid-template-columns:repeat(8,1fr);gap:4px}
+.dirs button{background:var(--panel2);border:1px solid var(--line);border-radius:8px;padding:7px 0;cursor:pointer;font:600 12px 'JetBrains Mono',monospace;position:relative}
+.dirs button.on{border-color:var(--acc);color:var(--acc)}
+.dirs button.has::after{content:'';position:absolute;top:3px;right:3px;width:6px;height:6px;border-radius:50%;background:var(--ok)}
+#cutCanvas{width:100%;height:min(68vh,620px);display:block;border-radius:10px;touch-action:none;border:1px solid var(--line)}
+.prompt{background:var(--panel2);border:1px solid var(--line);border-radius:10px;padding:10px;margin:8px 0;font-size:12.5px;white-space:pre-wrap}
+.prompt b{color:var(--acc)}
+.modal{position:fixed;inset:0;background:rgba(5,6,9,.82);z-index:50;display:none;align-items:center;justify-content:center;padding:10px}
+.modal.on{display:flex}
+.sheet{background:var(--panel);border:1px solid var(--line);border-radius:14px;width:min(760px,100%);max-height:96vh;overflow:auto;padding:12px}
+.sheet h2{margin:0 0 8px;font-size:16px}
+#seCanvas{width:100%;height:min(52vh,480px);display:block;border-radius:10px;touch-action:none;border:1px solid var(--line)}
+.toast{position:fixed;left:50%;bottom:22px;transform:translateX(-50%);background:#22252e;border:1px solid var(--line);padding:9px 14px;border-radius:10px;z-index:80;opacity:0;transition:opacity .25s;pointer-events:none;max-width:90vw}
+.toast.on{opacity:1}
+.progress{position:absolute;inset:0;display:none;align-items:center;justify-content:center;flex-direction:column;gap:8px;background:rgba(10,11,14,.78);z-index:3}
+.progress.on{display:flex}
+.bar{width:220px;height:6px;border-radius:9px;background:#252832;overflow:hidden}
+.bar i{display:block;height:100%;width:0;background:linear-gradient(90deg,var(--acc),var(--vio))}
+.chips{display:flex;gap:6px;flex-wrap:wrap}
+.chip{background:var(--panel2);border:1px solid var(--line);border-radius:99px;padding:4px 6px 4px 11px;display:inline-flex;gap:6px;align-items:center;font-size:12.5px;cursor:pointer}
+.chip span{background:#2a2d38;border-radius:50%;width:18px;height:18px;display:grid;place-items:center;font-size:11px}
+.mono{font-family:'JetBrains Mono',monospace}
+.banner{margin:10px 14px 0;padding:9px 12px;border-radius:10px;background:#1b2433;border:1px solid #2b3d58;font-size:13px;display:none;gap:10px;align-items:center}
+.banner.on{display:flex}
+.check{display:inline-flex;gap:6px;align-items:center;color:var(--mute);font-size:13px;cursor:pointer}
+.out img{max-width:100%;border-radius:8px;background:repeating-conic-gradient(#1d2028 0 25%,#16181e 0 50%) 0 0/16px 16px}
+.out textarea{min-height:200px;font:11px 'JetBrains Mono',monospace}
+.small{font-size:12px}
+.status{font-size:12.5px;color:var(--mute);min-height:18px}
+.cell.gen{border-color:var(--acc)}
+.gviews{display:grid;grid-template-columns:repeat(4,1fr);gap:6px}
+.gv{background:var(--panel2);border:1px solid var(--line);border-radius:10px;padding:5px;text-align:center}
+.gv canvas{width:100%;aspect-ratio:2/3;border-radius:6px;display:block;background:#2a2c33}
+.gv .st{font-size:11px;color:var(--mute);min-height:15px;margin:3px 0;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.gv b{font:600 11px 'JetBrains Mono',monospace}
+.gv.working{border-color:var(--acc)}.gv.done{border-color:var(--ok)}.gv.err{border-color:var(--bad)}
+.refs{display:flex;gap:6px;flex-wrap:wrap;margin-top:8px}
+.refs div{position:relative}.refs canvas{width:64px;height:64px;border-radius:8px;object-fit:cover;border:1px solid var(--line)}
+.refs button{position:absolute;top:-6px;right:-6px;border-radius:50%;width:20px;height:20px;border:0;background:#2a2d38;cursor:pointer;font-size:11px}
+#genLog{font:11.5px 'JetBrains Mono',monospace;color:var(--mute);max-height:150px;overflow:auto;white-space:pre-wrap;background:#0f1014;border-radius:8px;padding:8px;margin-top:8px}
+input[type=password]{width:100%;background:var(--panel2);border:1px solid var(--line);border-radius:9px;padding:8px 10px}
+input[list]{width:100%;background:var(--panel2);border:1px solid var(--line);border-radius:9px;padding:6px 8px}
+</style>
+</head>
+<body>
+<div class="app">
+  <section class="stage">
+    <header>
+      <div class="logo">SP</div>
+      <h1>Sprite Puppet Maker</h1>
+      <span class="pill" id="coverage">0/128</span>
+    </header>
+    <div class="canvasWrap checker" id="previewWrap">
+      <canvas id="preview"></canvas>
+      <div class="progress" id="progress"><div id="progLabel">Rendering mannequin…</div><div class="bar"><i id="progBar"></i></div></div>
+    </div>
+    <div class="ctrls">
+      <div class="seg" id="viewSeg"><button data-v="grid" class="on">8 dirs</button><button data-v="single">Single</button></div>
+      <button class="btn sm" id="dirPrev" title="Rotate left">⟲</button>
+      <span class="mono small" id="dirLabel">S</span>
+      <button class="btn sm" id="dirNext" title="Rotate right">⟳</button>
+      <select id="clipSel"></select>
+      <select id="speedSel"><option value="0.5">0.5×</option><option value="1" selected>1×</option><option value="1.5">1.5×</option></select>
+      <button class="btn sm" id="playBtn">❚❚</button>
+      <label class="check"><input type="checkbox" id="skelChk"> bones</label>
+    </div>
+  </section>
+
+  <section class="side">
+    <div class="banner" id="restoreBanner"><span>Restored your last session.</span><button class="btn sm" id="freshBtn" style="margin-left:auto">Start fresh</button></div>
+    <nav class="tabs" id="tabs">
+      <button data-t="gen" class="on">✦ Generate</button>
+      <button data-t="parts">Parts</button>
+      <button data-t="photo">Photo → Parts</button>
+      <button data-t="char">Character</button>
+      <button data-t="anim">Animate</button>
+      <button data-t="export">Export</button>
+    </nav>
+
+    <!-- GENERATE -->
+    <div class="panel on" id="p-gen">
+      <h3>OpenAI connection</h3>
+      <div class="card">
+        <input type="password" id="apiKey" placeholder="OpenAI API key (sk-…)" autocomplete="off">
+        <div class="row" style="margin-top:8px"><button class="btn" id="saveKey">Save key</button><button class="btn" id="testKey">Test key &amp; list models</button><span class="status" id="keyStatus"></span></div>
+        <div class="field"><label>Image model</label><input list="imgModels" id="imgModel" value="gpt-image-1.5"><span></span></div>
+        <datalist id="imgModels"><option value="gpt-image-1.5"><option value="gpt-image-2"><option value="gpt-image-1"><option value="gpt-image-1-mini"></datalist>
+        <div class="field"><label>Quality</label><select id="imgQuality"><option>low</option><option>medium</option><option selected>high</option></select><span></span></div>
+        <div class="field"><label>Vision model</label><input list="visModels" id="visModel" value="gpt-4.1"><span></span></div>
+        <datalist id="visModels"><option value="gpt-4.1"><option value="gpt-4.1-mini"><option value="gpt-4o"></datalist>
+        <label class="check"><input type="checkbox" id="genTransparent" checked> ask for transparent backgrounds (if the model refuses, the app removes the background itself)</label>
+        <p class="hint">Your key is stored only on this phone and is sent only to api.openai.com. OpenAI bills your account for each image.</p>
+      </div>
+      <h3>Character</h3>
+      <div class="card">
+        <input type="text" id="genName" placeholder="Character name">
+        <div style="height:8px"></div>
+        <textarea id="genDesc" placeholder="Describe the character: age, build, face, hair, outfit, footwear, materials. e.g. a lean middle-aged man with a grey stubble beard, slicked-back black hair, a worn brown leather duster coat over a dark waistcoat, black trousers and scuffed boots"></textarea>
+        <div class="row" style="margin-top:8px"><button class="btn" id="addRef">Add reference image…</button><input type="file" id="refFile" accept="image/*" hidden><span class="hint">optional: a face, outfit or concept art to match</span></div>
+        <div class="refs" id="refs"></div>
+      </div>
+      <h3>Full-body renders: all 8 directions</h3>
+      <div class="card">
+        <p class="hint">Each view is rendered over the mannequin in the exact rig pose and camera angle, so it lines up with the skeleton. The front (S) view is made first and is used as the identity reference for the other 7. Each finished view is cut into all 16 parts automatically.</p>
+        <div class="gviews" id="genViews"></div>
+        <div class="row" style="margin-top:10px">
+          <button class="btn pri" id="genAll">✦ Generate all 8 views</button>
+          <button class="btn" id="genStop" disabled>Stop</button>
+        </div>
+        <label class="check" style="margin-top:8px"><input type="checkbox" id="genVision" checked> refine joint positions with the vision model</label>
+        <label class="check"><input type="checkbox" id="genAutoCut" checked> cut each view into parts automatically</label>
+      </div>
+      <h3>Part close-ups (extra detail)</h3>
+      <div class="card">
+        <p class="hint">Render single body parts on their own, at a higher resolution than a full-body shot gives. Each one is fitted to the mannequin part it replaces. Uses the S view as the identity reference.</p>
+        <div class="field"><label>Part</label><select id="gpPart"></select><span></span></div>
+        <div class="field"><label>Direction</label><select id="gpDir"></select><span></span></div>
+        <button class="btn pri" id="gpGo">✦ Generate</button>
+        <div id="genLog"></div>
+      </div>
+    </div>
+
+    <!-- PARTS -->
+    <div class="panel" id="p-parts">
+      <h3>Part × direction coverage</h3>
+      <p class="hint">Every body part has an image for all 8 directions. Grey = built-in 3D mannequin render (always present), so the puppet is never missing a piece. Replace any slot with your own photoreal art: tap a cell to upload, fit and clean it, or cut a whole photo into parts in <b>Photo → Parts</b>.</p>
+      <div class="legend"><span><i style="background:#3a3d47"></i>Mannequin</span><span><i style="background:var(--ok)"></i>Photo cut</span><span><i style="background:var(--acc2)"></i>Uploaded</span><span><i style="background:var(--vio)"></i>Mirrored</span><span><i style="background:var(--acc)"></i>AI part</span></div>
+      <div class="row" style="margin:10px 0">
+        <button class="btn" id="fillGaps">Fill gaps by mirroring</button>
+        <button class="btn" id="resetAll">Reset all to mannequin</button>
+      </div>
+      <table class="grid" id="partsGrid"></table>
+    </div>
+
+    <!-- PHOTO -->
+    <div class="panel" id="p-photo">
+      <h3>1 · Pick a direction and load a full-body photo</h3>
+      <div class="dirs" id="photoDirs"></div>
+      <p class="hint">Use a photo or AI render of the character in an A-pose (arms a little away from the body) on a plain background. The Character tab has a prompt pack that writes matching prompts for all 8 views.</p>
+      <div class="row">
+        <button class="btn pri" id="photoLoadBtn">Load photo…</button>
+        <input type="file" id="photoFile" accept="image/*" hidden>
+        <span class="status" id="photoStatus"></span>
+      </div>
+      <h3>2 · Remove the background</h3>
+      <div class="field"><label>Tolerance</label><input type="range" id="bgTol" min="5" max="120" value="30"><output id="bgTolO">30</output></div>
+      <div class="row">
+        <button class="btn" id="bgAuto">Auto-remove</button>
+        <label class="check"><input type="checkbox" id="eraseMode"> tap to erase a colour</label>
+      </div>
+      <p class="hint">Auto-remove clears background touching the photo edges. Gaps enclosed by the body (between the legs, inside a bent arm) need tap-to-erase. If it eats into light clothing, lower the tolerance and try again.</p>
+      <div class="row">
+        <button class="btn sm" id="bgRestore">Restore original</button>
+      </div>
+      <h3>3 · Place the joints</h3>
+      <p class="hint">Drag the dots onto the joints. Blue = the character's left, orange = their right. Drag empty space to pan, pinch or scroll to zoom.</p>
+      <div class="row">
+        <button class="btn blue" id="aiJoints" style="display:none">✦ Auto-detect joints (AI)</button>
+        <button class="btn" id="fitJoints">Reset dots to rig</button>
+        <label class="check"><input type="checkbox" id="showMasks" checked> cut masks</label>
+        <label class="check"><input type="checkbox" id="showLabels"> labels</label>
+      </div>
+      <div style="margin-top:8px"><canvas id="cutCanvas" class="checker"></canvas></div>
+      <h3>4 · Cut into parts</h3>
+      <div class="field"><label>Cut width</label><input type="range" id="cutWidth" min="0.7" max="2.2" step="0.05" value="1.3"><output id="cutWidthO">1.30</output></div>
+      <div class="field"><label>Edge feather</label><input type="range" id="cutFeather" min="0" max="8" step="0.5" value="2"><output id="cutFeatherO">2</output></div>
+      <div class="row">
+        <button class="btn pri" id="cutBtn">Cut into 16 parts</button>
+        <label class="check" id="mirrorAlsoWrap"><input type="checkbox" id="mirrorAlso" checked> <span id="mirrorAlsoLbl">also mirror to W</span></label>
+      </div>
+    </div>
+
+    <!-- CHARACTER -->
+    <div class="panel" id="p-char">
+      <h3>Character</h3>
+      <div class="card">
+        <input type="text" id="charName" placeholder="Character name">
+        <div style="height:8px"></div>
+        <textarea id="charDesc" placeholder="Describe the character for the photo prompts, e.g. a tall woman in a weathered black trench coat, grey turtleneck, dark cargo trousers and combat boots, short silver hair"></textarea>
+      </div>
+      <h3>Body proportions (the rig)</h3>
+      <div class="card" id="propFields"></div>
+      <h3>Camera &amp; mannequin</h3>
+      <div class="card">
+        <div class="field"><label>Camera pitch</label><input type="range" id="pitch" min="0" max="45" step="1" value="0"><output id="pitchO">0°</output></div>
+        <p class="hint">0° = eye-level side-on. 25–35° suits top-down / isometric games. Match this to the camera angle in your photos.</p>
+        <div class="field"><label>Mannequin colour</label><input type="color" id="tint" value="#c8a58a"><span></span></div>
+        <div class="field"><label>Render quality</label><select id="resSel"><option value="240">Fast</option><option value="360" selected>Standard</option><option value="520">High</option></select><span></span></div>
+        <button class="btn pri" id="rerender">Apply &amp; re-render mannequin</button>
+      </div>
+      <h3>Photo prompt pack (8 views)</h3>
+      <div class="card">
+        <div class="field"><label>Background</label><select id="bgSel"><option>plain light grey</option><option>plain pure white</option><option>solid chroma-key green</option></select><span></span></div>
+        <button class="btn" id="genPrompts">Write prompts</button>
+        <p class="hint">Paste these into your image generator. Make the front (S) view first, then pass it as a reference image for the other seven so the character stays consistent.</p>
+        <div id="prompts"></div>
+      </div>
+    </div>
+
+    <!-- ANIMATE -->
+    <div class="panel" id="p-anim">
+      <h3>Pose editor</h3>
+      <div class="card">
+        <label class="check" style="margin-bottom:8px"><input type="checkbox" id="poseMode"> Edit pose (freezes the preview on this pose)</label>
+        <div class="field"><label>Joint</label><select id="jointSel"></select><span></span></div>
+        <div class="field"><label>Bend (X)</label><input type="range" id="jrx" min="-180" max="180" value="0"><output id="jrxO">0</output></div>
+        <div class="field"><label>Twist (Y)</label><input type="range" id="jry" min="-180" max="180" value="0"><output id="jryO">0</output></div>
+        <div class="field"><label>Side (Z)</label><input type="range" id="jrz" min="-180" max="180" value="0"><output id="jrzO">0</output></div>
+        <div class="field"><label>Body height</label><input type="range" id="rootY" min="-0.6" max="0.6" step="0.01" value="0"><output id="rootYO">0</output></div>
+        <div class="row">
+          <button class="btn" id="poseFromClip">Copy current animation frame</button>
+          <button class="btn" id="poseReset">Reset pose</button>
+        </div>
+      </div>
+      <h3>Custom animation</h3>
+      <div class="card">
+        <div class="row"><button class="btn pri" id="addKey">Add pose as keyframe</button><button class="btn" id="playCustom">Play custom</button></div>
+        <div class="field"><label>Loop length</label><input type="range" id="customDur" min="0.3" max="4" step="0.1" value="1.2"><output id="customDurO">1.2s</output></div>
+        <div class="chips" id="keyChips"></div>
+        <p class="hint">Keyframes loop in order with eased blending. Tap a keyframe to load it into the editor.</p>
+      </div>
+    </div>
+
+    <!-- EXPORT -->
+    <div class="panel" id="p-export">
+      <h3>Sprite sheets</h3>
+      <div class="card">
+        <div id="clipChecks" class="row"></div>
+        <div class="field"><label>Frames / clip</label><input type="range" id="exFrames" min="2" max="24" value="8"><output id="exFramesO">8</output></div>
+        <div class="field"><label>Cell size</label><select id="exCell"><option>64</option><option>128</option><option selected>256</option><option>512</option></select><span></span></div>
+        <p class="hint">One PNG per clip: 8 rows (S, SE, E, NE, N, NW, W, SW) × frames, transparent background, feet on the same baseline in every cell.</p>
+        <button class="btn pri" id="exSheets">Export sprite sheets</button>
+      </div>
+      <h3>Rigged puppet for your engine</h3>
+      <div class="card">
+        <p class="hint">Texture atlas of all 128 part images plus <span class="mono">rig.json</span>: joint hierarchy, bone→image slots per direction with pivots, and sampled animation poses. Draw each slot at its bone's joint, rotated by the bone's projected angle, sorted by depth.</p>
+        <button class="btn pri" id="exRig">Export atlas + rig.json</button>
+      </div>
+      <h3>Project</h3>
+      <div class="card">
+        <div class="row"><button class="btn" id="saveProj">Save project file</button><button class="btn" id="loadProjBtn">Open project file…</button><input type="file" id="loadProj" accept=".json,application/json" hidden></div>
+        <p class="hint">Saves your photos, cut parts, joints, proportions and keyframes in one .json file.</p>
+      </div>
+    </div>
+  </section>
+</div>
+
+<!-- Slot editor -->
+<div class="modal" id="slotModal">
+  <div class="sheet">
+    <div class="row"><h2 id="seTitle">Part</h2><span class="mono small" id="seSrc" style="color:var(--mute)"></span><button class="btn sm" id="seClose" style="margin-left:auto">Done</button></div>
+    <canvas id="seCanvas" class="checker"></canvas>
+    <p class="hint">Drag to move · pinch (or scroll / shift+scroll) to scale and rotate. Line it up over the faint mannequin. Green dot = joint this part pivots on.</p>
+    <div class="row">
+      <button class="btn pri" id="seGen">✦ Generate this part</button>
+      <button class="btn" id="seUpload">Upload image…</button><input type="file" id="seFile" accept="image/*" hidden>
+      <button class="btn" id="seBg">Remove background</button>
+      <label class="check"><input type="checkbox" id="seErase"> tap to erase colour</label>
+      <button class="btn" id="seFlip">Flip ↔</button>
+    </div>
+    <div class="field"><label>Scale</label><input type="range" id="seScale" min="-3" max="3" step="0.01" value="0"><output id="seScaleO">1.00</output></div>
+    <div class="field"><label>Rotate</label><input type="range" id="seRot" min="-180" max="180" step="1" value="0"><output id="seRotO">0°</output></div>
+    <div class="field"><label>Ghost</label><input type="range" id="seGhost" min="0" max="1" step="0.05" value="0.35"><output></output></div>
+    <div class="row">
+      <div class="seg" id="seZoom"><button data-z="part" class="on">Zoom part</button><button data-z="body">Whole body</button></div>
+      <button class="btn" id="seMirror">Mirror from …</button>
+      <button class="btn" id="seReset">Reset to mannequin</button>
+    </div>
+  </div>
+</div>
+
+<!-- Export fallback -->
+<div class="modal" id="outModal"><div class="sheet"><div class="row"><h2 id="outTitle">Export</h2><button class="btn sm" id="outClose" style="margin-left:auto">Close</button></div><p class="hint">Downloads aren't available in this view. Long-press the image to save it, or copy the text.</p><div class="out" id="outBody"></div></div></div>
+
+<div class="toast" id="toast"></div>
+
+<script>
+"use strict";
+/* ======================= constants ======================= */
+const DEG = Math.PI/180;
+const DIRS = [
+  {id:'S', yaw:0,   name:'front'},
+  {id:'SE',yaw:45,  name:'front three-quarter, facing right'},
+  {id:'E', yaw:90,  name:'right-facing profile'},
+  {id:'NE',yaw:135, name:'back three-quarter, facing right'},
+  {id:'N', yaw:180, name:'back'},
+  {id:'NW',yaw:225, name:'back three-quarter, facing left'},
+  {id:'W', yaw:270, name:'left-facing profile'},
+  {id:'SW',yaw:315, name:'front three-quarter, facing left'}
+];
+const DIR_IDX = Object.fromEntries(DIRS.map((d,i)=>[d.id,i]));
+const MIRROR = {S:'S',SE:'SW',E:'W',NE:'NW',N:'N',NW:'NE',W:'E',SW:'SE'};
+const PARTS = [
+  ['head','Head'],['neck','Neck'],['torso','Torso'],['pelvis','Pelvis'],
+  ['upperArmL','Upper arm L'],['upperArmR','Upper arm R'],['forearmL','Forearm L'],['forearmR','Forearm R'],
+  ['handL','Hand L'],['handR','Hand R'],['thighL','Thigh L'],['thighR','Thigh R'],
+  ['calfL','Calf L'],['calfR','Calf R'],['footL','Foot L'],['footR','Foot R']
+];
+const PART_IDS = PARTS.map(p=>p[0]);
+const PART_LABEL = Object.fromEntries(PARTS);
+const BONES = {
+  head:{a:'neckTop',b:'headTop',f:'neckTop',bias:.02},
+  neck:{a:'neckBase',b:'neckTop',f:'neckBase',bias:-.03},
+  torso:{a:'waist',b:'neckBase',f:'waist',bias:0},
+  pelvis:{a:'waist',b:'crotch',f:'root',bias:-.006}
+};
+for (const s of ['L','R']) {
+  BONES['upperArm'+s]={a:'shoulder'+s,b:'elbow'+s,f:'shoulder'+s,bias:.01};
+  BONES['forearm'+s]={a:'elbow'+s,b:'wrist'+s,f:'elbow'+s,bias:.012};
+  BONES['hand'+s]={a:'wrist'+s,b:'handTip'+s,f:'wrist'+s,bias:.014};
+  BONES['thigh'+s]={a:'hip'+s,b:'knee'+s,f:'hip'+s,bias:-.02};
+  BONES['calf'+s]={a:'knee'+s,b:'ankle'+s,f:'knee'+s,bias:-.017};
+  BONES['foot'+s]={a:'ankle'+s,b:'toe'+s,f:'ankle'+s,bias:-.012};
+}
+const MARKERS = ['headTop','neckTop','neckBase','shoulderL','elbowL','wristL','handTipL','shoulderR','elbowR','wristR','handTipR','waist','crotch','hipL','kneeL','ankleL','toeL','hipR','kneeR','ankleR','toeR'];
+const POSE_JOINTS = [['root','Whole body'],['waist','Spine / chest'],['neckBase','Neck'],['neckTop','Head'],['shoulderL','Shoulder L'],['elbowL','Elbow L'],['wristL','Wrist L'],['shoulderR','Shoulder R'],['elbowR','Elbow R'],['wristR','Wrist R'],['hipL','Hip L'],['kneeL','Knee L'],['ankleL','Ankle L'],['hipR','Hip R'],['kneeR','Knee R'],['ankleR','Ankle R']];
+const PROPS = [['shoulder','Shoulder width',.13,.27,.005],['hip','Hip width',.07,.15,.005],['arm','Arm length',.8,1.2,.01],['leg','Leg length',.8,1.25,.01],['torso','Torso length',.8,1.25,.01],['head','Head size',.8,1.35,.01],['build','Build / bulk',.7,1.5,.01]];
+const swapLR = id => id.replace(/([LR])$/, m => m==='L'?'R':'L');
+const $ = s => document.querySelector(s);
+const NATIVE = !!(window.Android && window.Android.http);
+
+/* ======================= math ======================= */
+function mmul(a,b){const r=new Array(9);for(let i=0;i<3;i++)for(let j=0;j<3;j++)r[i*3+j]=a[i*3]*b[j]+a[i*3+1]*b[3+j]+a[i*3+2]*b[6+j];return r;}
+function mvec(m,v){return [m[0]*v[0]+m[1]*v[1]+m[2]*v[2],m[3]*v[0]+m[4]*v[1]+m[5]*v[2],m[6]*v[0]+m[7]*v[1]+m[8]*v[2]];}
+function rx(a){const c=Math.cos(a),s=Math.sin(a);return [1,0,0,0,c,-s,0,s,c];}
+function ry(a){const c=Math.cos(a),s=Math.sin(a);return [c,0,s,0,1,0,-s,0,c];}
+function rz(a){const c=Math.cos(a),s=Math.sin(a);return [c,-s,0,s,c,0,0,0,1];}
+const I3=[1,0,0,0,1,0,0,0,1];
+function eul(e){ if(!e) return I3; return mmul(rz(e[2]*DEG),mmul(ry(e[1]*DEG),rx(e[0]*DEG))); }
+const add=(a,b)=>[a[0]+b[0],a[1]+b[1],a[2]+b[2]], sub=(a,b)=>[a[0]-b[0],a[1]-b[1],a[2]-b[2]];
+const clamp=(v,a,b)=>Math.max(a,Math.min(b,v));
+const smooth=u=>u*u*(3-2*u);
+function proj(V,p){const v=mvec(V,p);return {x:v[0],y:-v[1],z:v[2]};}
+
+/* ======================= state ======================= */
+const state = {
+  P:{shoulder:.19,hip:.10,arm:1,leg:1,torso:1,head:1,build:1},
+  pitch:0, tint:'#c8a58a', res:360, name:'', desc:'', bg:'plain light grey',
+  slots:{}, manq:{}, photos:{}, custom:{keys:[],dur:1.2},
+  view:{mode:'grid',dir:0,clip:'walk',speed:1,playing:true,skeleton:false},
+  gen:{ref:null,userRefs:[],busy:0,stop:false,status:{}},
+  editPose:{j:{},off:[0,0,0]}, poseMode:false, selJoint:'shoulderR', photoDir:0
+};
+PART_IDS.forEach(p=>{state.slots[p]=new Array(8).fill(null);state.manq[p]=new Array(8).fill(null);});
+const rig = {};
+
+/* ======================= skeleton ======================= */
+function buildRest(P){
+  const leg=P.leg, arm=P.arm, tor=P.torso, hd=P.head, sh=P.shoulder, hp=P.hip;
+  const ankleY=.08, kneeY=ankleY+.42*leg, hipY=kneeY+.42*leg;
+  const waistY=hipY+.08, neckBaseY=waistY+.46*tor, neckTopY=neckBaseY+.11, headTopY=neckTopY+.25*hd, shY=neckBaseY-.04;
+  const J={}; const set=(n,p,x,y,z)=>J[n]={parent:p,rest:[x,y,z]};
+  set('root',null,0,hipY+.03,0);
+  set('waist','root',0,waistY,0);
+  set('crotch','root',0,hipY-.07,0);
+  set('neckBase','waist',0,neckBaseY,0);
+  set('neckTop','neckBase',0,neckTopY,.01);
+  set('headTop','neckTop',0,headTopY,0);
+  for (const [s,g] of [['L',1],['R',-1]]) {
+    set('shoulder'+s,'waist',g*sh,shY,0);
+    set('elbow'+s,'shoulder'+s,g*(sh+.035),shY-.28*arm,-.01);
+    set('wrist'+s,'elbow'+s,g*(sh+.06),shY-.53*arm,.01);
+    set('handTip'+s,'wrist'+s,g*(sh+.07),shY-.70*arm,.015);
+    set('hip'+s,'root',g*hp,hipY,0);
+    set('knee'+s,'hip'+s,g*(hp+.01),kneeY,.01);
+    set('ankle'+s,'knee'+s,g*(hp+.015),ankleY,-.01);
+    set('toe'+s,'ankle'+s,g*(hp+.03),.015,.17);
+  }
+  return J;
+}
+function buildShapes(J,P){
+  const b=P.build,h=P.head,R=n=>J[n].rest, S={};
+  const cone=(a,bb,r1,r2,o={})=>({kind:'cone',a,b:bb,r1:r1*b,r2:r2*b,fx:o.fx||1,fz:o.fz||1});
+  S.head={kind:'head',c:add(R('neckTop'),[0,.13*h,.005]),h};
+  S.neck=cone(add(R('neckBase'),[0,-.03,0]),R('neckTop'),.046,.04);
+  S.torso=cone(add(R('waist'),[0,.02,0]),add(R('neckBase'),[0,-.045,0]),.125,Math.max(.12,P.shoulder*.86),{fz:.62});
+  S.pelvis=cone(add(R('waist'),[0,-.01,0]),add(R('crotch'),[0,.035,0]),P.hip+.035,P.hip+.025,{fz:.72});
+  for (const s of ['L','R']) {
+    S['upperArm'+s]=cone(R('shoulder'+s),R('elbow'+s),.05,.04);
+    S['forearm'+s]=cone(R('elbow'+s),R('wrist'+s),.042,.032);
+    S['hand'+s]=cone(add(R('wrist'+s),[0,-.01,0]),R('handTip'+s),.036,.027,{fx:.55});
+    S['thigh'+s]=cone(R('hip'+s),R('knee'+s),.074,.052);
+    S['calf'+s]=cone(R('knee'+s),R('ankle'+s),.054,.037);
+    S['foot'+s]=cone(add(R('ankle'+s),[0,-.025,-.03]),add(R('toe'+s),[0,.02,-.015]),.045,.034);
+  }
+  return S;
+}
+function shapeRadii(part){ const s=rig.shapes[part]; if(s.kind==='head') return [.1*s.h,.1*s.h]; return [s.r1,s.r2]; }
+function shapeFlat(part,yaw){
+  const s=rig.shapes[part]; if(s.kind==='head') return 1;
+  const c=Math.cos(yaw), sn=Math.sin(yaw);
+  return Math.sqrt((s.fx*c)**2+(s.fz*sn)**2);
+}
+function rebuildRig(){
+  rig.J=buildRest(state.P); rig.shapes=buildShapes(rig.J,state.P);
+  rig.V=[]; rig.restProj=[]; rig.axes=[];
+  for (let d=0;d<8;d++){
+    const V=mmul(rx(state.pitch*DEG),ry(DIRS[d].yaw*DEG)); rig.V[d]=V;
+    const rp={}; for (const n in rig.J) rp[n]=proj(V,rig.J[n].rest); rig.restProj[d]=rp;
+    rig.axes[d]=[[1,0,0],[0,1,0],[0,0,1]].map(v=>proj(V,v));
+  }
+  let minY=1e9,maxY=-1e9,minX=1e9,maxX=-1e9;
+  for (let d=0;d<8;d++) for (const n in rig.restProj[d]) {const p=rig.restProj[d][n];minY=Math.min(minY,p.y);maxY=Math.max(maxY,p.y);minX=Math.min(minX,p.x);maxX=Math.max(maxX,p.x);}
+  rig.fit={minY:minY-.06,maxY:maxY+.04,minX:minX-.1,maxX:maxX+.1};
+}
+function fk(pose){
+  const W={},G={};
+  for (const n in rig.J){
+    const j=rig.J[n], L=eul(pose&&pose.j&&pose.j[n]);
+    if(!j.parent){ W[n]=add(j.rest,(pose&&pose.off)||[0,0,0]); G[n]=L; }
+    else { const pg=G[j.parent]; W[n]=add(W[j.parent],mvec(pg,sub(j.rest,rig.J[j.parent].rest))); G[n]=mmul(pg,L); }
+  }
+  return {W,G};
+}
+
+/* ======================= mannequin renderer (ray-marched SDF) ======================= */
+function makeSDF(sh){
+  if (sh.kind==='head'){
+    const h=sh.h,c=sh.c, r=[.083*h,.118*h,.098*h], jc=add(c,[0,-.062*h,.022*h]), jr=[.062*h,.05*h,.072*h], nc=add(c,[0,-.012*h,.097*h]), nr=.021*h;
+    const ell=(x,y,z,cc,rr)=>{const px=(x-cc[0])/rr[0],py=(y-cc[1])/rr[1],pz=(z-cc[2])/rr[2];const k0=Math.hypot(px,py,pz);const k1=Math.hypot(px/rr[0],py/rr[1],pz/rr[2])||1e-9;return k0*(k0-1)/k1;};
+    const smin=(a,b,k)=>{const hh=Math.max(k-Math.abs(a-b),0)/k;return Math.min(a,b)-hh*hh*k*.25;};
+    return (x,y,z)=>{let d=ell(x,y,z,c,r);d=smin(d,ell(x,y,z,jc,jr),.04*h);d=smin(d,Math.hypot(x-nc[0],y-nc[1],z-nc[2])-nr,.02*h);return d;};
+  }
+  const {a,b,r1,r2,fx,fz}=sh, c=[(a[0]+b[0])/2,(a[1]+b[1])/2,(a[2]+b[2])/2], fm=Math.min(fx,fz);
+  const ba=sub(b,a), l2=ba[0]**2+ba[1]**2+ba[2]**2, rr=r1-r2, a2=l2-rr*rr, il2=1/l2, srr=Math.sign(rr);
+  return (x,y,z)=>{
+    const px=c[0]+(x-c[0])/fx, pz=c[2]+(z-c[2])/fz;
+    const pax=px-a[0],pay=y-a[1],paz=pz-a[2];
+    const yy=pax*ba[0]+pay*ba[1]+paz*ba[2], zz=yy-l2;
+    const q0=pax*l2-ba[0]*yy,q1=pay*l2-ba[1]*yy,q2=paz*l2-ba[2]*yy, x2=q0*q0+q1*q1+q2*q2;
+    const y2=yy*yy*l2, z2=zz*zz*l2, k=srr*rr*rr*x2; let d;
+    if (Math.sign(zz)*a2*z2>k) d=Math.sqrt(x2+z2)*il2-r2;
+    else if (Math.sign(yy)*a2*y2<k) d=Math.sqrt(x2+y2)*il2-r1;
+    else d=(Math.sqrt(x2*a2*il2)+yy*rr)*il2-r1;
+    return d*fm;
+  };
+}
+function hexRGB(h){const n=parseInt(h.slice(1),16);return [(n>>16&255)/255,(n>>8&255)/255,(n&255)/255];}
+function renderPart(part,d){
+  const sh=rig.shapes[part], sdf=makeSDF(sh), V=rig.V[d], R=state.res;
+  let pts,pad;
+  if (sh.kind==='head'){pts=[sh.c];pad=.16*sh.h;} else {pts=[sh.a,sh.b];pad=Math.max(sh.r1,sh.r2)+.012;}
+  let mnX=1e9,mxX=-1e9,mnY=1e9,mxY=-1e9,mnZ=1e9,mxZ=-1e9;
+  for (const p of pts) for (let i=0;i<8;i++){
+    const q=[p[0]+(i&1?pad:-pad),p[1]+(i&2?pad:-pad),p[2]+(i&4?pad:-pad)], v=mvec(V,q);
+    mnX=Math.min(mnX,v[0]);mxX=Math.max(mxX,v[0]);mnY=Math.min(mnY,v[1]);mxY=Math.max(mxY,v[1]);mnZ=Math.min(mnZ,v[2]);mxZ=Math.max(mxZ,v[2]);
+  }
+  const W=Math.max(4,Math.ceil((mxX-mnX)*R)+2), H=Math.max(4,Math.ceil((mxY-mnY)*R)+2);
+  const cxv=(mnX+mxX)/2, cyv=(mnY+mxY)/2, x0=cxv-W/(2*R), yTop=cyv+H/(2*R);
+  const cv=document.createElement('canvas'); cv.width=W; cv.height=H;
+  const g=cv.getContext('2d'), img=g.createImageData(W,H), D=img.data;
+  let base=hexRGB(state.tint);
+  if (/L$/.test(part)) base=[base[0]*.93,base[1]*.98,Math.min(1,base[2]*1.1)];
+  if (/R$/.test(part)) base=[Math.min(1,base[0]*1.06),base[1]*.99,base[2]*.9];
+  const L=(()=>{const v=[-.45,.65,.62],l=Math.hypot(...v);return v.map(x=>x/l);})();
+  const Hh=(()=>{const v=[L[0],L[1],L[2]+1],l=Math.hypot(...v);return v.map(x=>x/l);})();
+  const eps=.5/R, e=.0015;
+  const toC=(vx,vy,vz)=>[V[0]*vx+V[3]*vy+V[6]*vz, V[1]*vx+V[4]*vy+V[7]*vz, V[2]*vx+V[5]*vy+V[8]*vz];
+  for (let j=0;j<H;j++){
+    const vy=yTop-(j+.5)/R;
+    for (let i=0;i<W;i++){
+      const vx=x0+(i+.5)/R;
+      let vz=mxZ, hit=false, minD=1e9, best=null;
+      for (let it=0;it<70;it++){
+        const p=toC(vx,vy,vz), dd=sdf(p[0],p[1],p[2]);
+        if (dd<minD){minD=dd;best=p;}
+        if (dd<eps*.3){hit=true;break;}
+        vz-=Math.max(dd*.85,.25/R);
+        if (vz<mnZ) break;
+      }
+      let alpha= hit?1:clamp(1-(minD/eps-.3)*.7,0,1);
+      if (alpha<=0.01) continue;
+      const p=best;
+      const n=[sdf(p[0]+e,p[1],p[2])-sdf(p[0]-e,p[1],p[2]),sdf(p[0],p[1]+e,p[2])-sdf(p[0],p[1]-e,p[2]),sdf(p[0],p[1],p[2]+e)-sdf(p[0],p[1],p[2]-e)];
+      let nv=mvec(V,n); const nl=Math.hypot(...nv)||1; nv=nv.map(x=>x/nl);
+      const ndl=nv[0]*L[0]+nv[1]*L[1]+nv[2]*L[2];
+      const wrap=clamp((ndl+.35)/1.35,0,1), amb=.22+.12*nv[1];
+      const spec=Math.pow(Math.max(0,nv[0]*Hh[0]+nv[1]*Hh[1]+nv[2]*Hh[2]),32)*.25;
+      const rim=Math.pow(1-Math.max(0,nv[2]),3)*.16;
+      const o=(j*W+i)*4;
+      D[o]  =clamp((base[0]*(amb+.85*wrap)+spec+rim*.55)*255,0,255);
+      D[o+1]=clamp((base[1]*(amb+.85*wrap)+spec+rim*.68)*255,0,255);
+      D[o+2]=clamp((base[2]*(amb+.85*wrap)+spec+rim*.95)*255,0,255);
+      D[o+3]=alpha*255;
+    }
+  }
+  g.putImageData(img,0,0);
+  const A=rig.restProj[d][BONES[part].a];
+  return {src:'mannequin',canvas:cv,x:cxv-A.x,y:-cyv-A.y,scale:1/R,rot:0};
+}
+async function renderMannequin(){
+  const prog=$('#progress'), bar=$('#progBar'); prog.classList.add('on');
+  const total=PART_IDS.length*8; let n=0;
+  for (let d=0;d<8;d++) for (const p of PART_IDS){
+    state.manq[p][d]=renderPart(p,d);
+    const s=state.slots[p][d];
+    if (!s||s.src==='mannequin') state.slots[p][d]={...state.manq[p][d]};
+    n++; if (n%4===0){bar.style.width=(n/total*100)+'%'; await new Promise(r=>setTimeout(r,0));}
+  }
+  prog.classList.remove('on'); refreshAllThumbs(); updateCoverage();
+}
+
+/* ======================= puppet drawing ======================= */
+function drawPuppet(ctx,d,pose,ox,oy,k,o={}){
+  const {W,G}=fk(pose), V=rig.V[d], ax=rig.axes[d], list=[];
+  for (const part of PART_IDS){
+    const b=BONES[part], s=(o.slotOverride&&o.slotOverride[part])||state.slots[part][d];
+    if (!s||!s.canvas) continue;
+    const A=proj(V,W[b.a]), B=proj(V,W[b.b]), M=G[b.f]; let sc=0,sd=0;
+    for (let i=0;i<3;i++){const r=ax[i], c=proj(V,[M[i],M[3+i],M[6+i]]); sc+=r.x*c.y-r.y*c.x; sd+=r.x*c.x+r.y*c.y;}
+    list.push({part,s,A,ang:Math.atan2(sc,sd),z:(A.z+B.z)/2+b.bias});
+  }
+  list.sort((a,b)=>a.z-b.z);
+  for (const it of list){
+    ctx.save();
+    if (o.alphaFn) ctx.globalAlpha=o.alphaFn(it.part);
+    ctx.translate(ox+it.A.x*k,oy+it.A.y*k); ctx.rotate(it.ang); ctx.scale(k,k);
+    ctx.translate(it.s.x,it.s.y); ctx.rotate(it.s.rot); ctx.scale(it.s.scale,it.s.scale);
+    ctx.drawImage(it.s.canvas,-it.s.canvas.width/2,-it.s.canvas.height/2);
+    ctx.restore();
+  }
+  if (o.skeleton){
+    ctx.save(); ctx.lineWidth=2; ctx.strokeStyle='rgba(94,200,255,.9)'; ctx.fillStyle='#ff8a3d';
+    for (const part of PART_IDS){const b=BONES[part],A=proj(V,W[b.a]),B=proj(V,W[b.b]);ctx.beginPath();ctx.moveTo(ox+A.x*k,oy+A.y*k);ctx.lineTo(ox+B.x*k,oy+B.y*k);ctx.stroke();}
+    for (const n in W){const p=proj(V,W[n]);ctx.beginPath();ctx.arc(ox+p.x*k,oy+p.y*k,3,0,7);ctx.fill();}
+    ctx.restore();
+  }
+}
+function cellFit(cw,ch){
+  const f=rig.fit, k=Math.min(ch*.84/(f.maxY-f.minY), cw*.9/(f.maxX-f.minX));
+  return {k, ox:cw/2, oy:ch*.93-f.maxY*k};
+}
+
+/* ======================= animation clips ======================= */
+function lerpPose(a,b,u){
+  const j={}; const keys=new Set([...Object.keys(a.j||{}),...Object.keys(b.j||{})]);
+  for (const n of keys){const x=(a.j&&a.j[n])||[0,0,0],y=(b.j&&b.j[n])||[0,0,0];j[n]=[x[0]+(y[0]-x[0])*u,x[1]+(y[1]-x[1])*u,x[2]+(y[2]-x[2])*u];}
+  const ao=a.off||[0,0,0],bo=b.off||[0,0,0];
+  return {j,off:[ao[0]+(bo[0]-ao[0])*u,ao[1]+(bo[1]-ao[1])*u,ao[2]+(bo[2]-ao[2])*u]};
+}
+function keyed(keys,t){
+  for (let i=0;i<keys.length-1;i++) if (t>=keys[i][0]&&t<=keys[i+1][0]) return lerpPose(keys[i][1],keys[i+1][1],smooth((t-keys[i][0])/((keys[i+1][0]-keys[i][0])||1)));
+  return keys[keys.length-1][1];
+}
+const GUARD={j:{shoulderL:[-45,0,10],elbowL:[-110,0,0],shoulderR:[-40,0,-10],elbowR:[-115,0,0],hipL:[-10,0,0],kneeL:[15,0,0],hipR:[8,0,0],kneeR:[12,0,0],ankleL:[-5,0,0],ankleR:[-15,0,0]},off:[0,-.02,0]};
+const CLIPS = {
+  rest:{label:'Rest pose',dur:1,fn:()=>({j:{},off:[0,0,0]})},
+  idle:{label:'Idle',dur:2.6,fn:t=>{const s=Math.sin(2*Math.PI*t);return {j:{waist:[1.5*s,0,0],neckTop:[-1.2*s,0,0],shoulderL:[0,0,2+1.5*s],shoulderR:[0,0,-2-1.5*s],elbowL:[-6,0,0],elbowR:[-6,0,0]},off:[0,.004*s,0]};}},
+  walk:{label:'Walk',dur:1.05,fn:t=>{
+    const p=2*Math.PI*t,s=Math.sin(p),c=Math.cos(p);
+    const thL=-24*s,thR=24*s,knL=6+42*Math.pow(Math.max(0,c),1.4),knR=6+42*Math.pow(Math.max(0,-c),1.4);
+    return {j:{root:[0,5*s,0],waist:[2,-8*s,0],hipL:[thL,0,0],hipR:[thR,0,0],kneeL:[knL,0,0],kneeR:[knR,0,0],ankleL:[-(thL+knL)*.6,0,0],ankleR:[-(thR+knR)*.6,0,0],shoulderL:[18*s,0,3],shoulderR:[-18*s,0,-3],elbowL:[-14-6*Math.max(0,-s),0,0],elbowR:[-14-6*Math.max(0,s),0,0]},off:[0,-.014*Math.abs(s),0]};}},
+  run:{label:'Run',dur:.62,fn:t=>{
+    const p=2*Math.PI*t,s=Math.sin(p),c=Math.cos(p);
+    const thL=-42*s,thR=42*s,knL=15+85*Math.pow(Math.max(0,c),1.2),knR=15+85*Math.pow(Math.max(0,-c),1.2);
+    return {j:{root:[0,8*s,0],waist:[12,-10*s,0],neckBase:[-6,0,0],neckTop:[-4,0,0],hipL:[thL,0,0],hipR:[thR,0,0],kneeL:[knL,0,0],kneeR:[knR,0,0],ankleL:[-(thL+knL)*.45,0,0],ankleR:[-(thR+knR)*.45,0,0],shoulderL:[40*s,0,6],shoulderR:[-40*s,0,-6],elbowL:[-85,0,0],elbowR:[-85,0,0]},off:[0,.035*Math.abs(c)-.03,0]};}},
+  punch:{label:'Punch',dur:.9,fn:t=>keyed([
+    [0,GUARD],
+    [.25,{j:{...GUARD.j,waist:[0,-22,0],shoulderR:[-20,0,-12],elbowR:[-125,0,0]},off:[0,-.025,0]}],
+    [.45,{j:{...GUARD.j,waist:[3,26,0],shoulderR:[-88,0,-4],elbowR:[-4,0,0],wristR:[0,0,0],hipR:[14,0,0],kneeR:[6,0,0]},off:[0,-.03,0]}],
+    [.62,{j:{...GUARD.j,waist:[3,24,0],shoulderR:[-86,0,-4],elbowR:[-8,0,0],hipR:[14,0,0]},off:[0,-.03,0]}],
+    [1,GUARD]],t)},
+  custom:{label:'Custom',dur:1.2,fn:t=>{
+    const K=state.custom.keys; if(!K.length) return state.editPose; if(K.length===1) return K[0];
+    const n=K.length, f=t*n, i=Math.floor(f)%n; return lerpPose(K[i],K[(i+1)%n],smooth(f-Math.floor(f)));}}
+};
+function clipDur(id){return id==='custom'?state.custom.dur:CLIPS[id].dur;}
+function poseAt(clip,t){return CLIPS[clip].fn(((t%1)+1)%1);}
+
+/* ======================= preview ======================= */
+const pv=$('#preview'), pctx=pv.getContext('2d');
+let t0=performance.now(), animT=0, lastNow=performance.now();
+function sizePreview(){
+  const w=pv.parentElement.clientWidth, dpr=window.devicePixelRatio||1;
+  let h = state.view.mode==='grid'? w/2 : Math.min(w, window.innerHeight*.55);
+  if (window.innerWidth>=980){ const avail=pv.parentElement.clientHeight; h=Math.max(260,avail); }
+  pv.style.height=h+'px'; pv.width=Math.round(w*dpr); pv.height=Math.round(h*dpr);
+}
+function currentPose(){ return state.poseMode? state.editPose : poseAt(state.view.clip, animT); }
+function drawPreview(){
+  const now=performance.now(), dt=(now-lastNow)/1000; lastNow=now;
+  if (state.view.playing && !state.poseMode) animT+=dt*state.view.speed/clipDur(state.view.clip);
+  const W=pv.width,H=pv.height, dpr=window.devicePixelRatio||1; pctx.clearRect(0,0,W,H);
+  if (!rig.V || !state.slots.head[0]) { requestAnimationFrame(drawPreview); return; }
+  const pose=currentPose();
+  pctx.imageSmoothingQuality='high';
+  if (state.view.mode==='grid'){
+    const cols = W/H>3 ? 8 : 4, rows=8/cols, cw=W/cols, ch=H/rows, f=cellFit(cw,ch);
+    for (let d=0;d<8;d++){
+      const cx=(d%cols)*cw, cy=Math.floor(d/cols)*ch;
+      pctx.save(); pctx.beginPath(); pctx.rect(cx,cy,cw,ch); pctx.clip();
+      pctx.strokeStyle='rgba(255,255,255,.05)'; pctx.strokeRect(cx+.5,cy+.5,cw-1,ch-1);
+      drawPuppet(pctx,d,pose,cx+f.ox,cy+f.oy,f.k,{skeleton:state.view.skeleton});
+      pctx.fillStyle='rgba(236,233,227,.6)'; pctx.font=`600 ${11*dpr}px JetBrains Mono, monospace`; pctx.fillText(DIRS[d].id,cx+7*dpr,cy+16*dpr);
+      pctx.restore();
+    }
+  } else {
+    const f=cellFit(W,H); drawPuppet(pctx,state.view.dir,pose,f.ox,f.oy,f.k,{skeleton:state.view.skeleton});
+    pctx.fillStyle='rgba(236,233,227,.6)'; pctx.font=`600 ${13*dpr}px JetBrains Mono, monospace`; pctx.fillText(DIRS[state.view.dir].id+' · '+DIRS[state.view.dir].name,10*dpr,20*dpr);
+  }
+  requestAnimationFrame(drawPreview);
+}
+pv.addEventListener('click',e=>{
+  if (state.view.mode!=='grid') return;
+  const r=pv.getBoundingClientRect(), cols = pv.width/pv.height>3?8:4, rows=8/cols;
+  const c=Math.floor((e.clientX-r.left)/r.width*cols), w=Math.floor((e.clientY-r.top)/r.height*rows);
+  state.view.dir=clamp(w*cols+c,0,7); setViewMode('single');
+});
+function setViewMode(m){state.view.mode=m;document.querySelectorAll('#viewSeg button').forEach(b=>b.classList.toggle('on',b.dataset.v===m));$('#dirLabel').textContent=DIRS[state.view.dir].id;sizePreview();}
+document.querySelectorAll('#viewSeg button').forEach(b=>b.onclick=()=>setViewMode(b.dataset.v));
+$('#dirPrev').onclick=()=>{state.view.dir=(state.view.dir+7)%8;setViewMode('single');};
+$('#dirNext').onclick=()=>{state.view.dir=(state.view.dir+1)%8;setViewMode('single');};
+$('#playBtn').onclick=()=>{state.view.playing=!state.view.playing;$('#playBtn').textContent=state.view.playing?'❚❚':'▶';};
+$('#skelChk').onchange=e=>state.view.skeleton=e.target.checked;
+$('#speedSel').onchange=e=>state.view.speed=+e.target.value;
+function fillClipSelect(){
+  const sel=$('#clipSel'); sel.innerHTML=Object.entries(CLIPS).map(([k,c])=>`<option value="${k}">${c.label}</option>`).join(''); sel.value=state.view.clip;
+  sel.onchange=()=>{state.view.clip=sel.value;animT=0;};
+}
+window.addEventListener('resize',sizePreview);
+
+/* ======================= UI helpers ======================= */
+let toastTimer; function toast(msg,ms=2600){const t=$('#toast');t.textContent=msg;t.classList.add('on');clearTimeout(toastTimer);toastTimer=setTimeout(()=>t.classList.remove('on'),ms);}
+function confirmTap(btn,fn){ if(btn.dataset.armed){delete btn.dataset.armed;btn.textContent=btn.dataset.orig;fn();return;} btn.dataset.orig=btn.textContent;btn.dataset.armed=1;btn.textContent='Tap again to confirm';setTimeout(()=>{if(btn.dataset.armed){delete btn.dataset.armed;btn.textContent=btn.dataset.orig;}},3000); }
+document.querySelectorAll('#tabs button').forEach(b=>b.onclick=()=>{
+  document.querySelectorAll('#tabs button').forEach(x=>x.classList.toggle('on',x===b));
+  document.querySelectorAll('.panel').forEach(p=>p.classList.toggle('on',p.id==='p-'+b.dataset.t));
+  if (b.dataset.t==='photo') requestAnimationFrame(drawCut);
+  if (b.dataset.t==='gen' && window.refreshGenUI) requestAnimationFrame(refreshGenUI);
+});
+function cloneCanvas(c){const n=document.createElement('canvas');n.width=c.width;n.height=c.height;n.getContext('2d').drawImage(c,0,0);return n;}
+function flipCanvas(c){const n=document.createElement('canvas');n.width=c.width;n.height=c.height;const g=n.getContext('2d');g.translate(c.width,0);g.scale(-1,1);g.drawImage(c,0,0);return n;}
+function loadImageFile(file,maxSide=1800){
+  return new Promise((res,rej)=>{const url=URL.createObjectURL(file);const im=new Image();im.onload=()=>{const s=Math.min(1,maxSide/Math.max(im.width,im.height));const c=document.createElement('canvas');c.width=Math.round(im.width*s);c.height=Math.round(im.height*s);c.getContext('2d').drawImage(im,0,0,c.width,c.height);URL.revokeObjectURL(url);res(c);};im.onerror=()=>{URL.revokeObjectURL(url);rej(new Error('Could not read that image'));};im.src=url;});
+}
+function canvasFromDataURL(u){return new Promise((res,rej)=>{const im=new Image();im.onload=()=>{const c=document.createElement('canvas');c.width=im.width;c.height=im.height;c.getContext('2d').drawImage(im,0,0);res(c);};im.onerror=rej;im.src=u;});}
+
+/* background removal: flood fill from border (or a seed) with soft edge */
+function removeBg(canvas,tol,seed){
+  const W=canvas.width,H=canvas.height,g=canvas.getContext('2d'),img=g.getImageData(0,0,W,H),D=img.data;
+  let ref;
+  if (seed){const o=(seed[1]*W+seed[0])*4;ref=[D[o],D[o+1],D[o+2]];}
+  else { const rs=[],gs=[],bs=[]; const take=(x,y)=>{const o=(y*W+x)*4;if(D[o+3]>10){rs.push(D[o]);gs.push(D[o+1]);bs.push(D[o+2]);}};
+    for(let x=0;x<W;x+=2){take(x,0);take(x,H-1);} for(let y=0;y<H;y+=2){take(0,y);take(W-1,y);}
+    if(!rs.length) return 0; const med=a=>a.sort((p,q)=>p-q)[a.length>>1]; ref=[med(rs),med(gs),med(bs)]; }
+  const hi=tol*1.5, seen=new Uint8Array(W*H), stack=[];
+  const push=(x,y)=>{const i=y*W+x;if(!seen[i]){seen[i]=1;stack.push(i);}};
+  if (seed) push(seed[0],seed[1]); else {for(let x=0;x<W;x++){push(x,0);push(x,H-1);}for(let y=0;y<H;y++){push(0,y);push(W-1,y);}}
+  let removed=0;
+  while(stack.length){
+    const i=stack.pop(),o=i*4; if(D[o+3]===0 && !seed){ const x=i%W,y=(i/W)|0; if(x>0)push(x-1,y);if(x<W-1)push(x+1,y);if(y>0)push(x,y-1);if(y<H-1)push(x,y+1); continue; }
+    const dist=Math.hypot(D[o]-ref[0],D[o+1]-ref[1],D[o+2]-ref[2]);
+    if (dist>=hi) continue;
+    const a = dist<=tol?0:(dist-tol)/(hi-tol); D[o+3]=Math.round(D[o+3]*a); removed++;
+    if (dist<=tol){const x=i%W,y=(i/W)|0; if(x>0)push(x-1,y);if(x<W-1)push(x+1,y);if(y>0)push(x,y-1);if(y<H-1)push(x,y+1);}
+  }
+  g.putImageData(img,0,0); return removed;
+}
+function alphaBBox(c){
+  const W=c.width,H=c.height,D=c.getContext('2d').getImageData(0,0,W,H).data; let x0=W,y0=H,x1=-1,y1=-1;
+  for(let y=0;y<H;y+=2)for(let x=0;x<W;x+=2){if(D[(y*W+x)*4+3]>40){if(x<x0)x0=x;if(x>x1)x1=x;if(y<y0)y0=y;if(y>y1)y1=y;}}
+  if(x1<0) return {x0:0,y0:0,x1:W,y1:H}; return {x0,y0,x1,y1};
+}
+
+/* ======================= parts grid ======================= */
+const thumbs={};
+function buildGrid(){
+  const t=$('#partsGrid'); let h='<tr><th></th>'+DIRS.map(d=>`<th>${d.id}</th>`).join('')+'</tr>';
+  for (const [p,l] of PARTS){ h+=`<tr><td class="lbl">${l}</td>`+DIRS.map((d,i)=>`<td><canvas class="cell" data-p="${p}" data-d="${i}" width="96" height="96"></canvas></td>`).join('')+'</tr>'; }
+  t.innerHTML=h;
+  t.querySelectorAll('canvas.cell').forEach(c=>{thumbs[c.dataset.p+'|'+c.dataset.d]=c;c.onclick=()=>openSlot(c.dataset.p,+c.dataset.d);});
+}
+function refreshThumb(p,d){
+  const c=thumbs[p+'|'+d]; if(!c) return; const s=state.slots[p][d], g=c.getContext('2d'); g.clearRect(0,0,96,96);
+  c.className='cell '+(s?s.src:'mannequin'); if(!s) return;
+  g.fillStyle='#14161b'; g.fillRect(0,0,96,96);
+  const sc=Math.min(84/s.canvas.width,84/s.canvas.height);
+  g.save(); g.translate(48,48); g.rotate(s.rot); g.drawImage(s.canvas,-s.canvas.width*sc/2,-s.canvas.height*sc/2,s.canvas.width*sc,s.canvas.height*sc); g.restore();
+}
+function refreshAllThumbs(){for(const p of PART_IDS)for(let d=0;d<8;d++)refreshThumb(p,d);}
+function updateCoverage(){
+  let filled=0,real=0; for(const p of PART_IDS)for(let d=0;d<8;d++){const s=state.slots[p][d];if(s&&s.canvas)filled++;if(s&&s.src!=='mannequin')real++;}
+  $('#coverage').textContent=`${filled}/128 · ${real} custom`; scheduleSave();
+}
+function mirrorInto(p,d){
+  const sp=swapLR(p), sd=DIR_IDX[MIRROR[DIRS[d].id]], s=state.slots[sp][sd]; if(!s||!s.canvas) return false;
+  state.slots[p][d]={src:'mirror',canvas:flipCanvas(s.canvas),x:-s.x,y:s.y,scale:s.scale,rot:-s.rot}; return true;
+}
+$('#fillGaps').onclick=()=>{
+  let n=0; for(const p of PART_IDS)for(let d=0;d<8;d++){const s=state.slots[p][d]; if(s&&s.src!=='mannequin') continue;
+    const src=state.slots[swapLR(p)][DIR_IDX[MIRROR[DIRS[d].id]]]; if(src&&(src.src==='photo'||src.src==='upload'||src.src==='gen')&&mirrorInto(p,d)){n++;refreshThumb(p,d);}}
+  updateCoverage(); toast(n?`Filled ${n} slots by mirroring the opposite side`:'Nothing to mirror yet: add photo or uploaded parts first');
+};
+$('#resetAll').onclick=e=>confirmTap(e.target,()=>{for(const p of PART_IDS)for(let d=0;d<8;d++)state.slots[p][d]={...state.manq[p][d]};refreshAllThumbs();updateCoverage();toast('All slots reset to mannequin');});
+
+/* ======================= slot editor ======================= */
+const se={part:null,d:0,zoom:'part',ghost:.35,ptrs:new Map(),view:null};
+const seCv=$('#seCanvas'), seCtx=seCv.getContext('2d');
+function openSlot(p,d){
+  se.part=p; se.d=d; $('#slotModal').classList.add('on');
+  $('#seTitle').textContent=`${PART_LABEL[p]} · ${DIRS[d].id}`;
+  const mp=swapLR(p), md=MIRROR[DIRS[d].id];
+  $('#seMirror').textContent=`Mirror from ${PART_LABEL[mp]} · ${md}`;
+  $('#seMirror').disabled=(mp===p&&md===DIRS[d].id);
+  syncSeSliders(); requestAnimationFrame(drawSe);
+}
+function syncSeSliders(){const s=state.slots[se.part][se.d]; const m=state.manq[se.part][se.d];
+  const rel=s.scale/(m?m.scale:s.scale); $('#seScale').value=Math.log2(rel).toFixed(2); $('#seScaleO').textContent=rel.toFixed(2);
+  const r=Math.round(s.rot/DEG); $('#seRot').value=r; $('#seRotO').textContent=r+'°'; $('#seSrc').textContent=s.src;}
+function seLayout(){
+  const dpr=window.devicePixelRatio||1, w=seCv.clientWidth, h=seCv.clientHeight; seCv.width=w*dpr; seCv.height=h*dpr;
+  const rp=rig.restProj[se.d], b=BONES[se.part], A=rp[b.a], B=rp[b.b];
+  if (se.zoom==='body'){ const f=cellFit(seCv.width,seCv.height); return f; }
+  const span=Math.max(Math.hypot(B.x-A.x,B.y-A.y),.22)*2.2, k=Math.min(seCv.width,seCv.height)/span;
+  const mx=(A.x+B.x)/2,my=(A.y+B.y)/2; return {k,ox:seCv.width/2-mx*k,oy:seCv.height/2-my*k};
+}
+function drawSe(){
+  if(!$('#slotModal').classList.contains('on')) return;
+  const v=seLayout(); se.view=v; const g=seCtx; g.clearRect(0,0,seCv.width,seCv.height);
+  const ghostOv={}; for(const p of PART_IDS) ghostOv[p]=state.manq[p][se.d];
+  drawPuppet(g,se.d,null,v.ox,v.oy,v.k,{slotOverride:ghostOv,alphaFn:()=>se.ghost});
+  drawPuppet(g,se.d,null,v.ox,v.oy,v.k,{alphaFn:p=>p===se.part?1:(se.zoom==='body'?.0:0)});
+  const s=state.slots[se.part][se.d], A=rig.restProj[se.d][BONES[se.part].a], B=rig.restProj[se.d][BONES[se.part].b];
+  g.save(); g.translate(v.ox+A.x*v.k,v.oy+A.y*v.k); g.scale(v.k,v.k); g.translate(s.x,s.y); g.rotate(s.rot); g.scale(s.scale,s.scale);
+  g.strokeStyle='rgba(255,138,61,.8)'; g.lineWidth=1.5/(v.k*s.scale); g.setLineDash([6/(v.k*s.scale),4/(v.k*s.scale)]); g.strokeRect(-s.canvas.width/2,-s.canvas.height/2,s.canvas.width,s.canvas.height); g.restore();
+  const dot=(p,c)=>{g.fillStyle=c;g.beginPath();g.arc(v.ox+p.x*v.k,v.oy+p.y*v.k,5*(window.devicePixelRatio||1),0,7);g.fill();};
+  dot(A,'#46d18a'); dot(B,'#ff8a3d');
+}
+function seToImage(cx,cy){
+  const v=se.view, s=state.slots[se.part][se.d], A=rig.restProj[se.d][BONES[se.part].a];
+  let x=(cx-v.ox)/v.k-A.x-s.x, y=(cy-v.oy)/v.k-A.y-s.y; const c=Math.cos(-s.rot),sn=Math.sin(-s.rot);
+  const rxx=(x*c-y*sn)/s.scale, ryy=(x*sn+y*c)/s.scale; return [Math.round(rxx+s.canvas.width/2),Math.round(ryy+s.canvas.height/2)];
+}
+function sePt(e){const r=seCv.getBoundingClientRect(),dpr=seCv.width/r.width;return [(e.clientX-r.left)*dpr,(e.clientY-r.top)*dpr];}
+seCv.addEventListener('pointerdown',e=>{
+  seCv.setPointerCapture(e.pointerId); const p=sePt(e);
+  if($('#seErase').checked && se.ptrs.size===0){ const s=state.slots[se.part][se.d]; const [ix,iy]=seToImage(...p);
+    if(ix>=0&&iy>=0&&ix<s.canvas.width&&iy<s.canvas.height){ if(s.src==='mannequin'){toast('Upload an image first');return;} ensureOwnCanvas(s); removeBg(s.canvas,+$('#bgTol').value,[ix,iy]); afterSlotEdit(); } return; }
+  se.ptrs.set(e.pointerId,p);
+});
+seCv.addEventListener('pointermove',e=>{
+  if(!se.ptrs.has(e.pointerId)) return; const s=state.slots[se.part][se.d], p=sePt(e);
+  if(se.ptrs.size===1){const o=se.ptrs.get(e.pointerId); s.x+=(p[0]-o[0])/se.view.k; s.y+=(p[1]-o[1])/se.view.k; se.ptrs.set(e.pointerId,p);}
+  else { const ids=[...se.ptrs.keys()], a0=se.ptrs.get(ids[0]), b0=se.ptrs.get(ids[1]); se.ptrs.set(e.pointerId,p); const a1=se.ptrs.get(ids[0]), b1=se.ptrs.get(ids[1]);
+    const d0=Math.hypot(b0[0]-a0[0],b0[1]-a0[1]), d1=Math.hypot(b1[0]-a1[0],b1[1]-a1[1]);
+    s.scale*=d1/(d0||1); s.rot+=Math.atan2(b1[1]-a1[1],b1[0]-a1[0])-Math.atan2(b0[1]-a0[1],b0[0]-a0[0]);
+    s.x+=((a1[0]+b1[0])-(a0[0]+b0[0]))/2/se.view.k; s.y+=((a1[1]+b1[1])-(a0[1]+b0[1]))/2/se.view.k; }
+  markCustom(s); syncSeSliders(); drawSe();
+});
+const seUp=e=>{se.ptrs.delete(e.pointerId); if(!se.ptrs.size) afterSlotEdit(true);};
+seCv.addEventListener('pointerup',seUp); seCv.addEventListener('pointercancel',seUp);
+seCv.addEventListener('wheel',e=>{e.preventDefault();const s=state.slots[se.part][se.d]; if(e.shiftKey) s.rot+=e.deltaY*.003; else s.scale*=Math.exp(-e.deltaY*.0015); markCustom(s); syncSeSliders(); drawSe(); afterSlotEdit(true);},{passive:false});
+function markCustom(s){ if(s.src==='mannequin'){ s.src='upload'; s.canvas=cloneCanvas(s.canvas); } }
+function ensureOwnCanvas(s){ if(!s.orig) s.orig=cloneCanvas(s.canvas); }
+function afterSlotEdit(light){ refreshThumb(se.part,se.d); if(!light) drawSe(); updateCoverage(); }
+$('#seScale').oninput=e=>{const s=state.slots[se.part][se.d],m=state.manq[se.part][se.d]; s.scale=m.scale*Math.pow(2,+e.target.value); markCustom(s); $('#seScaleO').textContent=Math.pow(2,+e.target.value).toFixed(2); drawSe(); afterSlotEdit(true);};
+$('#seRot').oninput=e=>{const s=state.slots[se.part][se.d]; s.rot=+e.target.value*DEG; markCustom(s); $('#seRotO').textContent=e.target.value+'°'; drawSe(); afterSlotEdit(true);};
+$('#seGhost').oninput=e=>{se.ghost=+e.target.value;drawSe();};
+document.querySelectorAll('#seZoom button').forEach(b=>b.onclick=()=>{se.zoom=b.dataset.z;document.querySelectorAll('#seZoom button').forEach(x=>x.classList.toggle('on',x===b));drawSe();});
+$('#seClose').onclick=()=>{$('#slotModal').classList.remove('on');};
+$('#seUpload').onclick=()=>$('#seFile').click();
+$('#seFile').onchange=async e=>{
+  const f=e.target.files[0]; e.target.value=''; if(!f) return;
+  try{ const c=await loadImageFile(f,1200), m=state.manq[se.part][se.d];
+    const target=Math.max(m.canvas.width,m.canvas.height)*m.scale, sc=target/Math.max(c.width,c.height);
+    state.slots[se.part][se.d]={src:'upload',canvas:c,orig:cloneCanvas(c),x:m.x,y:m.y,scale:sc,rot:0};
+    syncSeSliders(); afterSlotEdit(); toast('Image placed. Drag / pinch to line it up');
+  }catch(err){toast(err.message);}
+};
+$('#seBg').onclick=()=>{const s=state.slots[se.part][se.d]; if(s.src==='mannequin'){toast('Upload an image first');return;} ensureOwnCanvas(s); const n=removeBg(s.canvas,+$('#bgTol').value); afterSlotEdit(); toast(n?'Background removed (tolerance is in Photo → Parts)':'No background colour found at the edges');};
+$('#seFlip').onclick=()=>{const s=state.slots[se.part][se.d]; markCustom(s); s.canvas=flipCanvas(s.canvas); if(s.orig) s.orig=flipCanvas(s.orig); s.rot=-s.rot; syncSeSliders(); afterSlotEdit();};
+$('#seMirror').onclick=()=>{ if(mirrorInto(se.part,se.d)){syncSeSliders();afterSlotEdit();toast('Mirrored');} };
+$('#seReset').onclick=()=>{state.slots[se.part][se.d]={...state.manq[se.part][se.d]};syncSeSliders();afterSlotEdit();};
+
+/* ======================= photo → parts ======================= */
+const cutCv=$('#cutCanvas'), cutCtx=cutCv.getContext('2d');
+const cut={ptrs:new Map(),drag:null,view:{z:1,px:0,py:0},layout:null};
+function buildPhotoDirs(){
+  $('#photoDirs').innerHTML=DIRS.map((d,i)=>`<button data-d="${i}">${d.id}</button>`).join('');
+  $('#photoDirs').querySelectorAll('button').forEach(b=>b.onclick=()=>{state.photoDir=+b.dataset.d;cut.view={z:1,px:0,py:0};syncPhotoUI();drawCut();});
+  syncPhotoUI();
+}
+function syncPhotoUI(){
+  $('#photoDirs').querySelectorAll('button').forEach(b=>{const i=+b.dataset.d;b.classList.toggle('on',i===state.photoDir);b.classList.toggle('has',!!(state.photos[i]&&state.photos[i].cutDone));});
+  const d=DIRS[state.photoDir], m=MIRROR[d.id]; $('#mirrorAlsoWrap').style.display=m===d.id?'none':''; $('#mirrorAlsoLbl').textContent='also mirror to '+m;
+  const ph=state.photos[state.photoDir];
+  $('#photoStatus').textContent= ph? `${ph.work.width}×${ph.work.height}px${ph.cutDone?' · cut ✓':''}` : `No photo for ${d.id} (${d.name}) yet`;
+  if (ph){ $('#cutWidth').value=ph.width; $('#cutWidthO').textContent=(+ph.width).toFixed(2); }
+}
+$('#photoLoadBtn').onclick=()=>$('#photoFile').click();
+$('#photoFile').onchange=async e=>{
+  const f=e.target.files[0]; e.target.value=''; if(!f) return;
+  try{ const c=await loadImageFile(f,1800); setPhoto(state.photoDir,c); toast('Photo loaded. Remove the background, then check the joint dots'); }catch(err){toast(err.message);}
+};
+function setPhoto(d,c){
+  state.photos[d]={orig:c,work:cloneCanvas(c),joints:{},width:+$('#cutWidth').value,cutDone:false};
+  fitJoints(d); cut.view={z:1,px:0,py:0}; syncPhotoUI(); drawCut(); scheduleSave();
+}
+function fitJoints(d){
+  const ph=state.photos[d]; if(!ph) return; const bb=alphaBBox(ph.work), rp=rig.restProj[d];
+  const top=rp.headTop.y-.012, bottom=Math.max(...MARKERS.map(n=>rp[n].y))+.012;
+  let mnx=1e9,mxx=-1e9; for(const n of MARKERS){mnx=Math.min(mnx,rp[n].x);mxx=Math.max(mxx,rp[n].x);}
+  const s=(bb.y1-bb.y0)/(bottom-top), cx=(bb.x0+bb.x1)/2;
+  for(const n of MARKERS) ph.joints[n]=[cx+rp[n].x*s, bb.y0+(rp[n].y-top)*s];
+}
+function cutLayout(){
+  const dpr=window.devicePixelRatio||1, w=cutCv.clientWidth, h=cutCv.clientHeight; if(cutCv.width!==Math.round(w*dpr)){cutCv.width=Math.round(w*dpr);cutCv.height=Math.round(h*dpr);}
+  const ph=state.photos[state.photoDir]; if(!ph) return null;
+  const f=Math.min(cutCv.width/ph.work.width,cutCv.height/ph.work.height)*.94*cut.view.z;
+  return {s:f, ox:cutCv.width/2-ph.work.width*f/2+cut.view.px, oy:cutCv.height/2-ph.work.height*f/2+cut.view.py, dpr};
+}
+function photoScale(ph,d){
+  const rp=rig.restProj[d]; let pc=[0,0],rc=[0,0]; for(const n of MARKERS){pc[0]+=ph.joints[n][0];pc[1]+=ph.joints[n][1];rc[0]+=rp[n].x;rc[1]+=rp[n].y;}
+  pc=pc.map(v=>v/MARKERS.length); rc=rc.map(v=>v/MARKERS.length); let sp=0,sr=0;
+  for(const n of MARKERS){sp+=(ph.joints[n][0]-pc[0])**2+(ph.joints[n][1]-pc[1])**2; sr+=(rp[n].x-rc[0])**2+(rp[n].y-rc[1])**2;}
+  return Math.sqrt(sp/sr);
+}
+const EXTEND={head:.45,handL:.35,handR:.35,footL:.3,footR:.3};
+function partCapsule(ph,d,part,s){
+  const b=BONES[part]; let A=ph.joints[b.a].slice(), B=ph.joints[b.b].slice();
+  const [r1,r2]=shapeRadii(part), fl=shapeFlat(part,DIRS[d].yaw*DEG), w=ph.width;
+  const rA=r1*fl*s*w, rB=r2*fl*s*w;
+  if(EXTEND[part]){const dx=B[0]-A[0],dy=B[1]-A[1],L=Math.hypot(dx,dy)||1;B=[B[0]+dx/L*rB*EXTEND[part],B[1]+dy/L*rB*EXTEND[part]];}
+  return {A,B,rA,rB};
+}
+function capsulePath(g,A,B,rA,rB){
+  const dx=B[0]-A[0],dy=B[1]-A[1],L=Math.hypot(dx,dy)||1e-6,nx=-dy/L,ny=dx/L;
+  g.beginPath(); g.arc(A[0],A[1],rA,0,Math.PI*2); g.moveTo(B[0]+rB,B[1]); g.arc(B[0],B[1],rB,0,Math.PI*2);
+  let q=[[A[0]+nx*rA,A[1]+ny*rA],[B[0]+nx*rB,B[1]+ny*rB],[B[0]-nx*rB,B[1]-ny*rB],[A[0]-nx*rA,A[1]-ny*rA]];
+  let area=0; for(let i=0;i<4;i++){const a=q[i],b=q[(i+1)%4];area+=a[0]*b[1]-b[0]*a[1];} if(area<0) q=q.reverse(); // same winding as the arcs, so nonzero fill has no holes
+  g.moveTo(...q[0]); g.lineTo(...q[1]); g.lineTo(...q[2]); g.lineTo(...q[3]); g.closePath();
+}
+function partHue(i){return (i*47)%360;}
+function drawCut(){
+  const L=cutLayout(); const g=cutCtx; g.clearRect(0,0,cutCv.width,cutCv.height); cut.layout=L;
+  if(!L){ g.fillStyle='#9497a3'; g.font=`${14*(window.devicePixelRatio||1)}px Space Grotesk`; g.textAlign='center'; g.fillText('Load a photo for '+DIRS[state.photoDir].id,cutCv.width/2,cutCv.height/2); g.textAlign='left'; return; }
+  const ph=state.photos[state.photoDir], d=state.photoDir;
+  g.save(); g.translate(L.ox,L.oy); g.scale(L.s,L.s); g.imageSmoothingQuality='high'; g.drawImage(ph.work,0,0);
+  if($('#showMasks').checked){ const s=photoScale(ph,d);
+    PART_IDS.forEach((p,i)=>{const c=partCapsule(ph,d,p,s); g.fillStyle=`hsla(${partHue(i)},80%,60%,.16)`; g.strokeStyle=`hsla(${partHue(i)},80%,65%,.7)`; g.lineWidth=1.2/L.s; capsulePath(g,c.A,c.B,c.rA,c.rB); g.fill(); g.stroke();}); }
+  g.lineWidth=2/L.s; g.strokeStyle='rgba(255,255,255,.75)';
+  for(const p of PART_IDS){const b=BONES[p],A=ph.joints[b.a],B=ph.joints[b.b];g.beginPath();g.moveTo(...A);g.lineTo(...B);g.stroke();}
+  g.restore();
+  const lab=$('#showLabels').checked, r=7*L.dpr;
+  for(const n of MARKERS){const [x,y]=ph.joints[n], sx=L.ox+x*L.s, sy=L.oy+y*L.s;
+    g.fillStyle=/L$/.test(n)?'#5ec8ff':/R$/.test(n)?'#ff8a3d':'#f2f0ea'; g.strokeStyle='#0d0e12'; g.lineWidth=2*L.dpr;
+    g.beginPath(); g.arc(sx,sy,cut.drag===n?r*1.5:r,0,7); g.fill(); g.stroke();
+    if(lab){g.font=`${10.5*L.dpr}px JetBrains Mono`;g.fillStyle='#fff';g.fillText(n,sx+r+3,sy+4);}
+  }
+}
+function cutPt(e){const rc=cutCv.getBoundingClientRect(),k=cutCv.width/rc.width;return [(e.clientX-rc.left)*k,(e.clientY-rc.top)*k];}
+cutCv.addEventListener('pointerdown',e=>{
+  const L=cut.layout; if(!L) return; cutCv.setPointerCapture(e.pointerId); const p=cutPt(e), ph=state.photos[state.photoDir];
+  if(cut.ptrs.size===0){
+    let best=null,bd=24*L.dpr; for(const n of MARKERS){const [x,y]=ph.joints[n],dd=Math.hypot(L.ox+x*L.s-p[0],L.oy+y*L.s-p[1]);if(dd<bd){bd=dd;best=n;}}
+    if(best){cut.drag=best;}
+    else if($('#eraseMode').checked){const ix=Math.round((p[0]-L.ox)/L.s),iy=Math.round((p[1]-L.oy)/L.s); if(ix>=0&&iy>=0&&ix<ph.work.width&&iy<ph.work.height){removeBg(ph.work,+$('#bgTol').value,[ix,iy]);drawCut();scheduleSave();} return;}
+  }
+  cut.ptrs.set(e.pointerId,p);
+});
+cutCv.addEventListener('pointermove',e=>{
+  if(!cut.ptrs.has(e.pointerId)) return; const L=cut.layout, p=cutPt(e), o=cut.ptrs.get(e.pointerId), ph=state.photos[state.photoDir];
+  if(cut.drag&&cut.ptrs.size===1){ ph.joints[cut.drag]=[(p[0]-L.ox)/L.s,(p[1]-L.oy)/L.s]; cut.ptrs.set(e.pointerId,p); drawCut(); return; }
+  if(cut.ptrs.size===1){cut.view.px+=p[0]-o[0];cut.view.py+=p[1]-o[1];cut.ptrs.set(e.pointerId,p);drawCut();return;}
+  const ids=[...cut.ptrs.keys()], a0=cut.ptrs.get(ids[0]), b0=cut.ptrs.get(ids[1]); cut.ptrs.set(e.pointerId,p); const a1=cut.ptrs.get(ids[0]), b1=cut.ptrs.get(ids[1]);
+  const ratio=Math.hypot(b1[0]-a1[0],b1[1]-a1[1])/(Math.hypot(b0[0]-a0[0],b0[1]-a0[1])||1); zoomCut(ratio,(a1[0]+b1[0])/2,(a1[1]+b1[1])/2); cut.drag=null;
+});
+function zoomCut(ratio,cx,cy){const v=cut.view, nz=clamp(v.z*ratio,.5,12), r=nz/v.z; const mx=cutCv.width/2+v.px, my=cutCv.height/2+v.py; v.px+= (cx-mx)*(1-r); v.py+=(cy-my)*(1-r); v.z=nz; drawCut();}
+const cutUp=e=>{cut.ptrs.delete(e.pointerId); if(!cut.ptrs.size){ if(cut.drag) scheduleSave(); cut.drag=null; drawCut(); }};
+cutCv.addEventListener('pointerup',cutUp); cutCv.addEventListener('pointercancel',cutUp);
+cutCv.addEventListener('wheel',e=>{e.preventDefault();const p=cutPt(e);zoomCut(Math.exp(-e.deltaY*.0015),p[0],p[1]);},{passive:false});
+$('#bgTol').oninput=e=>$('#bgTolO').textContent=e.target.value;
+$('#bgAuto').onclick=()=>{const ph=state.photos[state.photoDir]; if(!ph){toast('Load a photo first');return;} const n=removeBg(ph.work,+$('#bgTol').value); fitJoints(state.photoDir); drawCut(); scheduleSave(); toast(n?'Background removed and dots re-fitted to the figure':'No uniform background found at the edges. Try a higher tolerance or tap-to-erase');};
+$('#bgRestore').onclick=()=>{const ph=state.photos[state.photoDir]; if(!ph) return; ph.work=cloneCanvas(ph.orig); drawCut(); scheduleSave();};
+$('#fitJoints').onclick=()=>{fitJoints(state.photoDir);drawCut();};
+$('#showMasks').onchange=drawCut; $('#showLabels').onchange=drawCut;
+$('#cutWidth').oninput=e=>{$('#cutWidthO').textContent=(+e.target.value).toFixed(2); const ph=state.photos[state.photoDir]; if(ph){ph.width=+e.target.value;drawCut();}};
+$('#cutFeather').oninput=e=>$('#cutFeatherO').textContent=e.target.value;
+function cutPhoto(d,mirrorAlso){
+  const ph=state.photos[d]; if(!ph) return 0; const s=photoScale(ph,d), rp=rig.restProj[d], feather=+$('#cutFeather').value;
+  for(const part of PART_IDS){
+    const b=BONES[part], c=partCapsule(ph,d,part,s), pad=Math.max(c.rA,c.rB)+feather*2+2;
+    const x0=Math.floor(Math.min(c.A[0],c.B[0])-pad), y0=Math.floor(Math.min(c.A[1],c.B[1])-pad), x1=Math.ceil(Math.max(c.A[0],c.B[0])+pad), y1=Math.ceil(Math.max(c.A[1],c.B[1])+pad);
+    const W=Math.max(2,x1-x0), H=Math.max(2,y1-y0), cv=document.createElement('canvas'); cv.width=W; cv.height=H; const g=cv.getContext('2d');
+    if(feather>0) g.filter=`blur(${feather}px)`;
+    g.fillStyle='#fff'; capsulePath(g,[c.A[0]-x0,c.A[1]-y0],[c.B[0]-x0,c.B[1]-y0],Math.max(1,c.rA-feather*.5),Math.max(1,c.rB-feather*.5)); g.fill();
+    g.filter='none'; g.globalCompositeOperation='source-in'; g.drawImage(ph.work,-x0,-y0); g.globalCompositeOperation='source-over';
+    const A=ph.joints[b.a], Bp=ph.joints[b.b], ra=rp[b.a], rb=rp[b.b];
+    const L3=Math.hypot(...sub(rig.J[b.b].rest,rig.J[b.a].rest)), lr=Math.hypot(rb.x-ra.x,rb.y-ra.y), lp=Math.hypot(Bp[0]-A[0],Bp[1]-A[1])/s;
+    let th=0; if(lr>.35*L3&&lp>.35*L3) th=Math.atan2(rb.y-ra.y,rb.x-ra.x)-Math.atan2(Bp[1]-A[1],Bp[0]-A[0]);
+    const cx=x0+W/2-A[0], cy=y0+H/2-A[1], co=Math.cos(th), sn=Math.sin(th);
+    state.slots[part][d]={src:'photo',canvas:cv,x:(cx*co-cy*sn)/s,y:(cx*sn+cy*co)/s,scale:1/s,rot:th};
+    refreshThumb(part,d);
+  }
+  ph.cutDone=true;
+  if(mirrorAlso){ const md=DIR_IDX[MIRROR[DIRS[d].id]]; if(md!==d) for(const p of PART_IDS){const cur=state.slots[p][md]; if(!cur||cur.src==='mannequin'||cur.src==='mirror'){mirrorInto(p,md);refreshThumb(p,md);}} }
+  updateCoverage(); return PART_IDS.length;
+}
+$('#cutBtn').onclick=()=>{
+  const d=state.photoDir; if(!state.photos[d]){toast('Load a photo first');return;}
+  const md=MIRROR[DIRS[d].id], m=$('#mirrorAlso').checked&&md!==DIRS[d].id;
+  cutPhoto(d,m); syncPhotoUI(); state.view.dir=d; setViewMode('single');
+  toast(`Cut 16 parts for ${DIRS[d].id}${m?` and mirrored them to ${md}`:''}. Check the preview`);
+};
+
+/* ---- Claude joint detection ---- */
+async function getCap(name){
+  for(let i=0;i<40&&!(window.claude&&window.claude.use);i++) await new Promise(r=>setTimeout(r,100));
+  if(!(window.claude&&window.claude.use)) return null;
+  try{ return await window.claude.use(name); }catch(e){ return null; }
+}
+let sampleCap=null;
+(async()=>{ const s=await getCap('sample'); if(!s) return; try{ const lim=await s.limits(); if(lim&&lim.images){ sampleCap=s; updateAiJointsBtn(); } }catch(e){} })();
+function updateAiJointsBtn(){ $('#aiJoints').style.display=(sampleCap||NATIVE||getKey())?'':'none'; }
+function jointPrompt(w,h,d){
+  return `You are a precise 2D pose-estimation tool. The attached image is ${w}x${h} pixels and shows one full-body character seen from the ${DIRS[d].name} view (camera pitch ${state.pitch} degrees).
+Return the pixel coordinates [x, y] (origin top-left, x right, y down) of these joints. "L" and "R" are the CHARACTER'S OWN left and right (in a front view the character's left side appears on the right of the image). If a joint is hidden behind the body, estimate where it would be.
+headTop: top of the skull; neckTop: centre of the neck just under the jaw/skull base; neckBase: centre of the base of the neck between the shoulders; shoulderL/R: shoulder joint centres; elbowL/R; wristL/R; handTipL/R: fingertips of each hand; waist: centre of the body at navel height; crotch: centre point between the legs at the crotch; hipL/R: hip joint centres at the top of each thigh; kneeL/R; ankleL/R; toeL/R: tip of each foot/shoe.
+Reply with ONLY a JSON object, no prose, e.g. {"headTop":[x,y],"neckTop":[x,y],...} with all 21 keys: ${MARKERS.join(', ')}.`;
+}
+function flatCanvas(src,maxSide,bg='#d9d9d9'){
+  const sc=Math.min(1,maxSide/Math.max(src.width,src.height)), c=document.createElement('canvas'); c.width=Math.round(src.width*sc); c.height=Math.round(src.height*sc);
+  const g=c.getContext('2d'); g.fillStyle=bg; g.fillRect(0,0,c.width,c.height); g.drawImage(src,0,0,c.width,c.height); return {c,sc};
+}
+function applyJoints(ph,J,sc){
+  const bb=alphaBBox(ph.work), mx=(bb.x1-bb.x0)*.2+20, my=(bb.y1-bb.y0)*.08+20; let n=0;
+  for(const k of MARKERS){ const v=J&&J[k]; if(Array.isArray(v)&&v.length>=2&&isFinite(v[0])&&isFinite(v[1])){ const x=v[0]/sc,y=v[1]/sc;
+    if(x>=bb.x0-mx&&x<=bb.x1+mx&&y>=bb.y0-my&&y<=bb.y1+my){ph.joints[k]=[x,y];n++;} } }
+  return n;
+}
+async function detectJoints(d){
+  const ph=state.photos[d]; if(!ph) throw new Error('Load a photo first');
+  const {c,sc}=flatCanvas(ph.work,1024);
+  if(getKey()){
+    const J=await oaVisionJSON(jointPrompt(c.width,c.height,d), c.toDataURL('image/jpeg',.9));
+    return applyJoints(ph,J,sc);
+  }
+  if(sampleCap){
+    const blob=await new Promise(r=>c.toBlob(r,'image/png'));
+    const res=await sampleCap(jointPrompt(c.width,c.height,d),{images:[blob],modelTier:'complex'});
+    const m=(res.text||'').match(/\{[\s\S]*\}/); if(!m) throw new Error('No joints in the reply');
+    return applyJoints(ph,JSON.parse(m[0]),sc);
+  }
+  throw new Error('Add your OpenAI key in the Generate tab first');
+}
+$('#aiJoints').onclick=async()=>{
+  const d=state.photoDir; if(!state.photos[d]){toast('Load a photo first');return;}
+  const btn=$('#aiJoints'); btn.disabled=true; btn.textContent='✦ Looking at the photo…';
+  try{ const n=await detectJoints(d); drawCut(); scheduleSave(); toast(`Placed ${n}/21 joints. Fine-tune any that are off`); }
+  catch(e){ toast(e&&e.code==='rate_limited'?'Busy, try again in a moment':'Auto-detect failed: '+(e.message||e.code||'error'),4000); }
+  btn.disabled=false; btn.textContent='✦ Auto-detect joints (AI)';
+};
+
+/* ======================= character tab ======================= */
+function buildProps(){
+  $('#propFields').innerHTML=PROPS.map(([k,l,a,b,st])=>`<div class="field"><label>${l}</label><input type="range" id="pp_${k}" min="${a}" max="${b}" step="${st}" value="${state.P[k]}"><output id="pp_${k}O">${(+state.P[k]).toFixed(2)}</output></div>`).join('');
+  PROPS.forEach(([k])=>$('#pp_'+k).oninput=e=>{$('#pp_'+k+'O').textContent=(+e.target.value).toFixed(2);});
+}
+$('#pitch').oninput=e=>$('#pitchO').textContent=e.target.value+'°';
+$('#rerender').onclick=async()=>{
+  PROPS.forEach(([k])=>state.P[k]=+$('#pp_'+k).value); state.pitch=+$('#pitch').value; state.tint=$('#tint').value; state.res=+$('#resSel').value;
+  rebuildRig(); for(const d in state.photos) if(state.photos[d]) fitJointsKeep(+d);
+  await renderMannequin(); drawCut(); toast('Rig and mannequin updated');
+};
+function fitJointsKeep(){/* photo joints are in photo pixels: kept as placed */}
+for(const id of ['#charName','#genName']) $(id).oninput=e=>{state.name=e.target.value;$('#charName').value=$('#genName').value=state.name;scheduleSave();};
+for(const id of ['#charDesc','#genDesc']) $(id).oninput=e=>{state.desc=e.target.value;$('#charDesc').value=$('#genDesc').value=state.desc;scheduleSave();};
+const VIEW_TEXT={
+  S:'Front view: the character faces the camera directly, body square to the lens.',
+  SE:'Three-quarter front view: the body is turned 45° so the character faces toward the right side of the image; we see their face and the right side of their body.',
+  E:'Exact side profile: the character faces the right edge of the image; we see their right side only.',
+  NE:'Three-quarter back view: the character faces away from the camera, turned 45° toward the right side of the image; we see their back and right side, and only the edge of their face.',
+  N:'Back view: the character faces directly away from the camera; we see only their back.',
+  NW:'Three-quarter back view: the character faces away from the camera, turned 45° toward the left side of the image; we see their back and left side, and only the edge of their face.',
+  W:'Exact side profile: the character faces the left edge of the image; we see their left side only.',
+  SW:'Three-quarter front view: the body is turned 45° so the character faces toward the left side of the image; we see their face and the left side of their body.'
+};
+$('#genPrompts').onclick=()=>{
+  const desc=(state.desc||'').trim()||'[describe your character: build, face, hair, outfit, footwear]';
+  const cam=state.pitch<3?'Camera at chest height, perfectly level':`Camera raised and looking down at the character at about ${state.pitch}°`;
+  const bg=$('#bgSel').value;
+  $('#prompts').innerHTML=DIRS.map(d=>{
+    const txt=`Photorealistic full-body studio photograph of ${desc}. ${VIEW_TEXT[d.id]} Neutral A-pose: standing straight, arms held slightly away from the body (about 20° out from the sides), elbows almost straight, hands relaxed and open with fingers together, legs straight and slightly apart, feet flat on the floor. The whole body is in frame from the top of the head to the soles of the feet, centred, with a small margin. ${cam}, long telephoto lens, minimal perspective distortion. Soft, even studio lighting, no harsh shadows, no shadow on the floor. ${bg[0].toUpperCase()+bg.slice(1)} background, no props, nothing overlapping the body. Keep the exact same character, outfit, proportions and lighting as the reference image. Sharp focus, high detail.
+Avoid: crossed arms, hands in pockets, cropped head or feet, motion blur, extra limbs, text, watermark.`;
+    return `<div class="prompt"><div class="row" style="margin-bottom:6px"><b>${d.id}</b><span class="small" style="color:var(--mute)">${d.name}</span><button class="btn sm" style="margin-left:auto" data-copy>Copy</button></div><span>${txt.replace(/</g,'&lt;')}</span></div>`;
+  }).join('');
+  $('#prompts').querySelectorAll('[data-copy]').forEach(b=>b.onclick=async()=>{const t=b.closest('.prompt').querySelector('span:last-child').textContent;try{await navigator.clipboard.writeText(t);toast('Prompt copied');}catch(e){const r=document.createRange();r.selectNodeContents(b.closest('.prompt').querySelector('span:last-child'));const sel=getSelection();sel.removeAllRanges();sel.addRange(r);toast('Selected. Copy it from the menu');}});
+};
+
+/* ======================= animate tab ======================= */
+function buildPoseUI(){
+  $('#jointSel').innerHTML=POSE_JOINTS.map(([k,l])=>`<option value="${k}">${l}</option>`).join(''); $('#jointSel').value=state.selJoint;
+  $('#jointSel').onchange=e=>{state.selJoint=e.target.value;syncPoseSliders();};
+  for(const ax of ['x','y','z']) $('#jr'+ax).oninput=e=>{const j=state.editPose.j[state.selJoint]||[0,0,0]; j['xyz'.indexOf(ax)]=+e.target.value; state.editPose.j[state.selJoint]=j; $('#jr'+ax+'O').textContent=e.target.value; enterPoseMode();};
+  $('#rootY').oninput=e=>{state.editPose.off=[0,+e.target.value,0];$('#rootYO').textContent=(+e.target.value).toFixed(2);enterPoseMode();};
+  $('#poseMode').onchange=e=>{state.poseMode=e.target.checked; if(state.poseMode) setViewMode('single');};
+  $('#poseReset').onclick=()=>{state.editPose={j:{},off:[0,0,0]};syncPoseSliders();};
+  $('#poseFromClip').onclick=()=>{const p=poseAt(state.view.clip,animT);state.editPose=JSON.parse(JSON.stringify(p));syncPoseSliders();enterPoseMode();};
+  $('#addKey').onclick=()=>{state.custom.keys.push(JSON.parse(JSON.stringify(state.editPose)));renderKeys();scheduleSave();toast(`Keyframe ${state.custom.keys.length} added`);};
+  $('#playCustom').onclick=()=>{state.poseMode=false;$('#poseMode').checked=false;state.view.clip='custom';$('#clipSel').value='custom';state.view.playing=true;$('#playBtn').textContent='❚❚';animT=0;};
+  $('#customDur').oninput=e=>{state.custom.dur=+e.target.value;$('#customDurO').textContent=e.target.value+'s';scheduleSave();};
+}
+function enterPoseMode(){ if(!state.poseMode){state.poseMode=true;$('#poseMode').checked=true;} }
+function syncPoseSliders(){const j=state.editPose.j[state.selJoint]||[0,0,0];['x','y','z'].forEach((a,i)=>{$('#jr'+a).value=j[i];$('#jr'+a+'O').textContent=Math.round(j[i]);});const oy=(state.editPose.off||[0,0,0])[1];$('#rootY').value=oy;$('#rootYO').textContent=oy.toFixed(2);}
+function renderKeys(){
+  $('#keyChips').innerHTML=state.custom.keys.map((k,i)=>`<span class="chip" data-i="${i}">Key ${i+1}<span data-del="${i}">✕</span></span>`).join('')||'<span class="hint">No keyframes yet.</span>';
+  $('#keyChips').querySelectorAll('.chip').forEach(c=>c.onclick=e=>{const del=e.target.dataset.del; if(del!==undefined){state.custom.keys.splice(+del,1);renderKeys();scheduleSave();return;} state.editPose=JSON.parse(JSON.stringify(state.custom.keys[+c.dataset.i]));syncPoseSliders();enterPoseMode();setViewMode('single');});
+}
+
+/* ======================= export ======================= */
+let dlCap; const dlReady=getCap('downloads').then(c=>dlCap=c);
+const MIME={png:'image/png',json:'application/json',zip:'application/zip',jpg:'image/jpeg'};
+function blobToB64(b){return new Promise((res,rej)=>{const r=new FileReader();r.onload=()=>res(String(r.result).split(',')[1]||'');r.onerror=()=>rej(r.error);r.readAsDataURL(b);});}
+async function saveFile(name,data){
+  if(NATIVE){ try{ const b64=await blobToB64(data instanceof Blob?data:new Blob([data])); const ext=name.split('.').pop().toLowerCase();
+      const r=Android.saveFile(name,MIME[ext]||'application/octet-stream',b64); if(String(r).startsWith('ERROR')){toast('Save failed: '+r.slice(6),4000);return false;} toast('Saved to '+r,3500); return true; }
+    catch(e){ toast('Save failed: '+e.message,4000); return false; } }
+  await dlReady;
+  if(dlCap){ try{ await dlCap.save({filename:name,data}); toast('Saved '+name); return true; }catch(e){ if(e&&e.code==='declined'){toast('Download cancelled');return false;} if(e&&e.code==='rate_limited'){toast('One moment, then try again');return false;} } }
+  showOut(name,data); return false;
+}
+function showOut(name,data){
+  $('#outTitle').textContent=name; const body=$('#outBody'); body.innerHTML='';
+  if(data instanceof Blob && /^image\//.test(data.type)){ const im=new Image(); im.src=URL.createObjectURL(data); body.appendChild(im); }
+  else if(data instanceof Blob){ body.innerHTML='<p class="hint">This file type can\'t be shown here. Open the app in a browser to download it.</p>'; }
+  else { const ta=document.createElement('textarea'); ta.value=data; ta.readOnly=true; ta.style.width='100%'; body.appendChild(ta); const b=document.createElement('button'); b.className='btn'; b.textContent='Copy'; b.onclick=async()=>{try{await navigator.clipboard.writeText(data);toast('Copied');}catch(e){ta.select();}}; body.appendChild(b); }
+  $('#outModal').classList.add('on');
+}
+$('#outClose').onclick=()=>$('#outModal').classList.remove('on');
+const canvasBlob=c=>new Promise(r=>c.toBlob(r,'image/png'));
+function buildClipChecks(){ $('#clipChecks').innerHTML=Object.entries(CLIPS).filter(([k])=>k!=='rest').map(([k,c])=>`<label class="check"><input type="checkbox" value="${k}" ${k==='walk'||k==='idle'?'checked':''}> ${c.label}</label>`).join(''); }
+$('#exFrames').oninput=e=>$('#exFramesO').textContent=e.target.value;
+function renderSheet(clip,F,C){
+  const cv=document.createElement('canvas'); cv.width=F*C; cv.height=8*C; const g=cv.getContext('2d'); g.imageSmoothingQuality='high';
+  const f=cellFit(C,C);
+  for(let d=0;d<8;d++) for(let i=0;i<F;i++){ g.save(); g.beginPath(); g.rect(i*C,d*C,C,C); g.clip(); drawPuppet(g,d,poseAt(clip,i/F),i*C+f.ox,d*C+f.oy,f.k); g.restore(); }
+  return cv;
+}
+$('#exSheets').onclick=async()=>{
+  const clips=[...document.querySelectorAll('#clipChecks input:checked')].map(i=>i.value); if(!clips.length){toast('Pick at least one clip');return;}
+  if(clips.includes('custom')&&!state.custom.keys.length){toast('Custom has no keyframes yet');return;}
+  const F=+$('#exFrames').value, C=+$('#exCell').value, base=(state.name||'puppet').replace(/[^\w-]+/g,'_');
+  const meta={character:state.name||'puppet',cellSize:C,frames:F,rows:DIRS.map(d=>d.id),pitchDeg:state.pitch,clips:{}};
+  const files=[]; for(const c of clips){ const cv=renderSheet(c,F,C); files.push([`${base}_${c}.png`,await canvasBlob(cv)]); meta.clips[c]={file:`${base}_${c}.png`,fps:Math.round(F/clipDur(c)),durationSec:clipDur(c)}; }
+  files.push([`${base}_sheets.json`,JSON.stringify(meta,null,2)]);
+  if(window.JSZip&&files.length>2){ const z=new JSZip(); files.forEach(([n,d])=>z.file(n,d)); await saveFile(`${base}_spritesheets.zip`,await z.generateAsync({type:'blob'})); }
+  else for(const [n,d] of files){ if(!(await saveFile(n,d))&&!dlCap) break; }
+};
+function packAtlas(){
+  const items=[]; for(const p of PART_IDS)for(let d=0;d<8;d++)items.push({p,d,c:state.slots[p][d].canvas});
+  const maxW=Math.max(1024,...items.map(i=>i.c.width+2)); const W=Math.min(4096,Math.max(maxW,Math.ceil(Math.sqrt(items.reduce((a,i)=>a+(i.c.width+2)*(i.c.height+2),0))*1.15)));
+  const sorted=[...items].sort((a,b)=>b.c.height-a.c.height); let x=0,y=0,rowH=0;
+  for(const it of sorted){ if(x+it.c.width+2>W){x=0;y+=rowH;rowH=0;} it.r=[x+1,y+1,it.c.width,it.c.height]; x+=it.c.width+2; rowH=Math.max(rowH,it.c.height+2); }
+  const H=y+rowH, cv=document.createElement('canvas'); cv.width=W; cv.height=H; const g=cv.getContext('2d');
+  for(const it of items) g.drawImage(it.c,it.r[0],it.r[1]); return {cv,items};
+}
+$('#exRig').onclick=async()=>{
+  const base=(state.name||'puppet').replace(/[^\w-]+/g,'_'), {cv,items}=packAtlas();
+  const slots={}; for(const it of items){ const s=state.slots[it.p][it.d]; (slots[it.p]=slots[it.p]||{})[DIRS[it.d].id]={rect:it.r,offset:[+s.x.toFixed(5),+s.y.toFixed(5)],scale:+s.scale.toFixed(6),rotationRad:+s.rot.toFixed(5),source:s.src}; }
+  const joints={}; for(const n in rig.J) joints[n]={parent:rig.J[n].parent,rest:rig.J[n].rest.map(v=>+v.toFixed(4))};
+  const clips={}; for(const k of Object.keys(CLIPS)){ if(k==='custom'&&!state.custom.keys.length) continue; const F=16; clips[k]={durationSec:clipDur(k),frames:Array.from({length:F},(_,i)=>{const p=poseAt(k,i/F);return {off:(p.off||[0,0,0]).map(v=>+v.toFixed(4)),rotDeg:Object.fromEntries(Object.entries(p.j||{}).map(([n,v])=>[n,v.map(x=>+x.toFixed(2))]))};})}; }
+  const json={format:'sprite-puppet/1',character:state.name||'puppet',atlas:`${base}_atlas.png`,atlasSize:[cv.width,cv.height],units:'metres (character ~1.8 tall); screen space is x right, y down',
+    camera:{pitchDeg:state.pitch,directions:DIRS.map(d=>({id:d.id,yawDeg:d.yaw}))},
+    eulerOrder:'local rotation = Rz * Ry * Rx (degrees); character faces +Z, +X is the character\'s left, +Y up',
+    view:'v = Rx(pitch) * Ry(yaw) * worldPos; screen = (v.x, -v.y); depth = v.z (bigger = nearer camera)',
+    drawing:'For each part: A = screen pos of bone.a; angle = 2D rotation that best maps the projected rest axes of bone.frame onto its current projected axes (sum of cross/dot over X,Y,Z axes); translate(A) rotate(angle) translate(offset) rotate(rotationRad) scale(scale) then draw the atlas rect centred. Sort parts by mean depth of bone.a and bone.b plus bias, far first.',
+    joints,bones:BONES,slots,clips};
+  const atlasBlob=await canvasBlob(cv), js=JSON.stringify(json,null,1);
+  if(window.JSZip){ const z=new JSZip(); z.file(`${base}_atlas.png`,atlasBlob); z.file(`${base}_rig.json`,js); await saveFile(`${base}_rig.zip`,await z.generateAsync({type:'blob'})); }
+  else { await saveFile(`${base}_atlas.png`,atlasBlob); await saveFile(`${base}_rig.json`,js); }
+};
+
+/* ======================= project save / load / autosave ======================= */
+function serialize(){
+  const slots={}; for(const p of PART_IDS){ slots[p]=state.slots[p].map(s=>!s||s.src==='mannequin'?null:{src:s.src,x:s.x,y:s.y,scale:s.scale,rot:s.rot,data:s.canvas.toDataURL('image/png')}); }
+  const photos={}; for(const d in state.photos){const ph=state.photos[d]; if(ph) photos[d]={orig:ph.orig.toDataURL('image/jpeg',.9),work:ph.work.toDataURL('image/png'),joints:ph.joints,width:ph.width,cutDone:ph.cutDone,generated:!!ph.generated};}
+  const gen={ref:state.gen.ref?state.gen.ref.toDataURL('image/png'):null,userRefs:state.gen.userRefs.map(c=>c.toDataURL('image/jpeg',.9))};
+  return JSON.stringify({format:'sprite-puppet-project/1',gen,P:state.P,pitch:state.pitch,tint:state.tint,res:state.res,name:state.name,desc:state.desc,custom:state.custom,slots,photos});
+}
+async function deserialize(txt){
+  const o=JSON.parse(txt); if(o.format!=='sprite-puppet-project/1') throw new Error('Not a Sprite Puppet project');
+  Object.assign(state.P,o.P); state.pitch=o.pitch; state.tint=o.tint; state.res=o.res||360; state.name=o.name||''; state.desc=o.desc||''; state.custom=o.custom||{keys:[],dur:1.2};
+  syncCharUI(); rebuildRig();
+  for(const p of PART_IDS) state.slots[p]=new Array(8).fill(null);
+  for(const p of PART_IDS) for(let d=0;d<8;d++){ const s=o.slots&&o.slots[p]&&o.slots[p][d]; if(s){ state.slots[p][d]={src:s.src,x:s.x,y:s.y,scale:s.scale,rot:s.rot,canvas:await canvasFromDataURL(s.data)}; } }
+  state.photos={}; for(const d in (o.photos||{})){ const ph=o.photos[d]; state.photos[d]={orig:await canvasFromDataURL(ph.orig),work:await canvasFromDataURL(ph.work),joints:ph.joints,width:ph.width,cutDone:ph.cutDone,generated:!!ph.generated}; }
+  state.gen.ref=o.gen&&o.gen.ref?await canvasFromDataURL(o.gen.ref):null; state.gen.userRefs=[]; for(const u of ((o.gen&&o.gen.userRefs)||[])) state.gen.userRefs.push(await canvasFromDataURL(u));
+  renderKeys(); await renderMannequin(); syncPhotoUI(); drawCut(); if(window.refreshGenUI) refreshGenUI();
+}
+function syncCharUI(){ $('#charName').value=state.name; $('#charDesc').value=state.desc; $('#genName').value=state.name; $('#genDesc').value=state.desc; $('#pitch').value=state.pitch; $('#pitchO').textContent=state.pitch+'°'; $('#tint').value=state.tint; $('#resSel').value=String(state.res); buildProps(); $('#customDur').value=state.custom.dur; $('#customDurO').textContent=state.custom.dur+'s'; }
+$('#saveProj').onclick=()=>saveFile(((state.name||'puppet').replace(/[^\w-]+/g,'_'))+'_project.json',serialize());
+$('#loadProjBtn').onclick=()=>$('#loadProj').click();
+$('#loadProj').onchange=async e=>{const f=e.target.files[0];e.target.value='';if(!f)return;try{await deserialize(await f.text());toast('Project opened');}catch(err){toast(err.message);}};
+let saveTimer=null, booted=false;
+function scheduleSave(){ if(!booted) return; clearTimeout(saveTimer); saveTimer=setTimeout(()=>idbPut('project',serialize()).catch(()=>{}),2500); }
+function idb(){return new Promise((res,rej)=>{try{const r=indexedDB.open('sprite-puppet',1);r.onupgradeneeded=()=>r.result.createObjectStore('kv');r.onsuccess=()=>res(r.result);r.onerror=()=>rej(r.error);}catch(e){rej(e);}});}
+async function idbPut(k,v){const db=await idb();return new Promise((res,rej)=>{const tx=db.transaction('kv','readwrite');tx.objectStore('kv').put(v,k);tx.oncomplete=res;tx.onerror=()=>rej(tx.error);});}
+async function idbGet(k){const db=await idb();return new Promise((res,rej)=>{const tx=db.transaction('kv','readonly');const r=tx.objectStore('kv').get(k);r.onsuccess=()=>res(r.result);r.onerror=()=>rej(r.error);});}
+$('#freshBtn').onclick=async()=>{try{await idbPut('project','');}catch(e){} location.reload();};
+
+
+/* ======================= OpenAI image generation ======================= */
+function prefGet(k,def=''){ try{ if(NATIVE) return Android.getPref(k)||def; const v=localStorage.getItem('sps_'+k); return v==null?def:v; }catch(e){ return def; } }
+function prefSet(k,v){ try{ if(NATIVE) Android.setPref(k,String(v)); else localStorage.setItem('sps_'+k,String(v)); }catch(e){} }
+function getKey(){ return (prefGet('openai_key')||'').trim(); }
+const sleep=ms=>new Promise(r=>setTimeout(r,ms));
+const nativePending={};
+window.__nativeDone=id=>{ const p=nativePending[id]; if(!p) return; delete nativePending[id]; try{ p.res(JSON.parse(Android.take(id))); }catch(e){ p.rej(e); } };
+function b64ToBlob(b64,mime){const bin=atob(b64),u=new Uint8Array(bin.length);for(let i=0;i<bin.length;i++)u[i]=bin.charCodeAt(i);return new Blob([u],{type:mime});}
+async function httpReq(spec){
+  if(NATIVE) return new Promise((res,rej)=>{ const id='r'+Date.now().toString(36)+Math.random().toString(36).slice(2); nativePending[id]={res,rej}; Android.http(id,JSON.stringify(spec)); });
+  let body=spec.body;
+  if(spec.multipart){ body=new FormData(); for(const p of spec.multipart){ if(p.dataBase64!==undefined) body.append(p.name,b64ToBlob(p.dataBase64,p.mime),p.filename); else body.append(p.name,p.value);} }
+  try{ const r=await fetch(spec.url,{method:spec.method||'GET',headers:spec.headers||{},body}); return {status:r.status,body:await r.text()}; }
+  catch(e){ return {status:0,body:'Network request blocked or failed ('+e.message+'). Image generation needs the Android app.'}; }
+}
+function apiErr(r){ let j=null; try{j=JSON.parse(r.body);}catch(e){} return (j&&j.error&&(j.error.message||j.error.code))||(`HTTP ${r.status} ${String(r.body||'').slice(0,240)}`); }
+function genLog(msg){ const el=$('#genLog'); if(!el) return; const t=new Date().toTimeString().slice(0,8); el.textContent=`${t}  ${msg}\n`+el.textContent; }
+function canvasPart(c,type='png'){ const url=type==='png'?c.toDataURL('image/png'):c.toDataURL('image/jpeg',.92); return {b64:url.split(',')[1],mime:type==='png'?'image/png':'image/jpeg',ext:type==='png'?'png':'jpg'}; }
+async function oaImage({prompt,images,transparent,size}){
+  const key=getKey(); if(!key) throw new Error('Add your OpenAI API key first (Generate tab)');
+  const params={model:($('#imgModel').value||'gpt-image-1.5').trim(),prompt,size:size||'1024x1536',quality:$('#imgQuality').value,n:'1'};
+  if(transparent){params.background='transparent';params.output_format='png';}
+  if(images&&images.length) params.input_fidelity='high';
+  const dropKey='dropped_'+params.model; for(const k of (window.__dropped&&window.__dropped[dropKey])||[]){ delete params[k]; if(k==='background') delete params.output_format; }
+  for(let attempt=0;attempt<7;attempt++){
+    if(state.gen.stop) throw new Error('Stopped');
+    const spec=images&&images.length
+      ? {url:'https://api.openai.com/v1/images/edits',method:'POST',headers:{Authorization:'Bearer '+key},
+         multipart:[...Object.entries(params).map(([k,v])=>({name:k,value:String(v)})),...images.map((im,i)=>({name:'image[]',filename:`ref${i}.${im.ext}`,mime:im.mime,dataBase64:im.b64}))]}
+      : {url:'https://api.openai.com/v1/images/generations',method:'POST',headers:{Authorization:'Bearer '+key,'Content-Type':'application/json'},body:JSON.stringify({...params,n:1})};
+    const r=await httpReq(spec); let j=null; try{j=JSON.parse(r.body);}catch(e){}
+    if(r.status===200&&j&&j.data&&j.data[0]&&j.data[0].b64_json) return {b64:j.data[0].b64_json};
+    const msg=apiErr(r);
+    if(r.status===400){ const drop=['background','input_fidelity','output_format','quality','size'].find(k=>k in params&&new RegExp(k.replace('_','.?'),'i').test(msg));
+      if(drop){ genLog(`model rejected "${drop}", retrying without it`); window.__dropped=window.__dropped||{}; (window.__dropped[dropKey]=window.__dropped[dropKey]||[]).push(drop); delete params[drop]; if(drop==='background') delete params.output_format; continue; } }
+    if(r.status===429||r.status>=500||r.status===0&&/timeout|reset|closed/i.test(msg)){ genLog(`busy (${r.status}), retrying…`); await sleep(5000*(attempt+1)); continue; }
+    if(r.status===401) throw new Error('OpenAI rejected the API key');
+    if(r.status===403&&/verif/i.test(msg)) throw new Error('OpenAI needs your organisation verified before it can use this image model (platform.openai.com → Settings → Organization → Verify)');
+    throw new Error(msg);
+  }
+  throw new Error('OpenAI kept failing, try again later');
+}
+async function oaVisionJSON(prompt,dataUrl){
+  const key=getKey(); if(!key) throw new Error('Add your OpenAI API key first');
+  const body={model:($('#visModel').value||'gpt-4.1').trim(),messages:[{role:'user',content:[{type:'text',text:prompt},{type:'image_url',image_url:{url:dataUrl,detail:'high'}}]}],response_format:{type:'json_object'}};
+  for(let attempt=0;attempt<4;attempt++){
+    const r=await httpReq({url:'https://api.openai.com/v1/chat/completions',method:'POST',headers:{Authorization:'Bearer '+key,'Content-Type':'application/json'},body:JSON.stringify(body)});
+    let j=null; try{j=JSON.parse(r.body);}catch(e){}
+    if(r.status===200&&j){ const txt=j.choices&&j.choices[0]&&j.choices[0].message&&j.choices[0].message.content||''; const m=String(txt).match(/\{[\s\S]*\}/); if(!m) throw new Error('No JSON in the vision reply'); return JSON.parse(m[0]); }
+    const msg=apiErr(r);
+    if(r.status===400&&/response_format/i.test(msg)&&body.response_format){ delete body.response_format; continue; }
+    if(r.status===429||r.status>=500){ await sleep(4000*(attempt+1)); continue; }
+    throw new Error(msg);
+  }
+  throw new Error('Vision request kept failing');
+}
+function hasTransparency(c){ const g=c.getContext('2d'),W=c.width,H=c.height; const pts=[[1,1],[W-2,1],[1,H-2],[W-2,H-2],[W>>1,1],[1,H>>1],[W-2,H>>1]]; let n=0; for(const [x,y] of pts){ if(g.getImageData(x,y,1,1).data[3]<20) n++; } return n>=4; }
+function cleanResult(c){ if(!hasTransparency(c)) removeBg(c,30); return c; }
+function guideFit(W,H){ const f=rig.fit, k=Math.min(H*.84/(f.maxY-f.minY),W*.86/(f.maxX-f.minX)); return {k,ox:W/2,oy:H*.07-f.minY*k}; }
+function renderGuide(d,W=1024,H=1536,bg='#c9c9c9'){
+  const c=document.createElement('canvas'); c.width=W; c.height=H; const g=c.getContext('2d'); g.fillStyle=bg; g.fillRect(0,0,W,H);
+  const ov={}; for(const p of PART_IDS) ov[p]=state.manq[p][d]; const f=guideFit(W,H);
+  g.imageSmoothingQuality='high'; drawPuppet(g,d,null,f.ox,f.oy,f.k,{slotOverride:ov}); return c;
+}
+const PART_DESC={
+  head:'the head including hair and any headwear, from the top of the head down to the jaw and chin (no neck, no shoulders)',
+  neck:'only the neck (and any collar on it), between the jaw and the shoulders',
+  torso:'the torso / chest only, from the base of the neck down to the waist, with the clothing on it, and no head, arms or legs',
+  pelvis:'the hips / pelvis only, from the waist down to the crotch, with the clothing on it, and no legs or torso',
+  upperArm:'the upper arm only, from the shoulder to the elbow, with the sleeve on it',
+  forearm:'the forearm only, from the elbow to the wrist, with the sleeve on it',
+  hand:'the hand only, from the wrist to the fingertips, relaxed and open with fingers together',
+  thigh:'the thigh only, from the hip to the knee, with the clothing on it',
+  calf:'the lower leg / calf only, from the knee to the ankle, with the clothing or boot shaft on it',
+  foot:'the foot only (shoe or boot), from the ankle down'
+};
+function partDesc(p){ const base=p.replace(/[LR]$/,''), side=/L$/.test(p)?' Use the character\'s own LEFT side.':/R$/.test(p)?' Use the character\'s own RIGHT side.':''; return PART_DESC[base]+'.'+side; }
+function viewPrompt(d,hasRef,nUser,transparent){
+  const desc=(state.desc||'').trim()||'an adult person in everyday clothes'; let k=2;
+  let p=`Image 1 is a pose and camera guide: a plain wooden mannequin on a grey background. Replace the mannequin with a photorealistic full-body photo of ${desc}. Match the mannequin exactly: the same pose (standing straight, arms held slightly away from the body, legs straight and slightly apart), the same facing direction (${VIEW_TEXT[DIRS[d].id]}), the same height, size and position in the frame, and the same camera angle. The whole body, from the top of the head to the soles of the feet, stays inside the frame.`;
+  if(hasRef){ p+=` Image ${k} shows this exact character: keep the identical face, hair, skin tone, body proportions, outfit, colours and materials.`; k++; }
+  if(nUser){ p+=` ${nUser>1?`Images ${k} to ${k+nUser-1} are references`:`Image ${k} is a reference`} for the character's look: follow ${nUser>1?'them':'it'} closely.`; }
+  p+=` Soft, even studio lighting, sharp focus, realistic skin, fabric and materials, no cast shadow on the floor. ${transparent?'Transparent background.':'Plain flat light grey background.'} No text, no props, no other people, nothing overlapping the body. The mannequin itself must not appear.`;
+  return p;
+}
+function partPrompt(p,d,hasRef,nUser,transparent){
+  const desc=(state.desc||'').trim()||'the character'; let k=2;
+  let s=`Image 1 shows one body part of a plain wooden mannequin, seen from the ${DIRS[d].name} view. Create a photorealistic image of the same body part of ${desc}: ${partDesc(p)} It must have exactly the same shape, angle, orientation, size and position in the frame as the mannequin part in image 1, so it can replace it in a cut-out puppet.`;
+  if(hasRef){ s+=` Image ${k} shows the character: match their skin tone, clothing, colours and materials exactly.`; k++; }
+  if(nUser) s+=` The remaining image${nUser>1?'s are':' is a'} reference${nUser>1?'s':''} for the character's look.`;
+  s+=` Show only this one part, cut off cleanly at the joints, with nothing else in the image: no other body parts, no shadow, no text. Soft, even studio lighting. ${transparent?'Transparent background.':'Plain flat light grey background.'}`;
+  return s;
+}
+function setGenStatus(d,cls,txt){ state.gen.status[d]={cls,txt}; const el=document.querySelector(`.gv[data-d="${d}"]`); if(!el) return; el.className='gv '+(cls||''); el.querySelector('.st').textContent=txt||''; }
+function drawGenThumb(d){
+  const el=document.querySelector(`.gv[data-d="${d}"] canvas`); if(!el) return; const g=el.getContext('2d'); g.clearRect(0,0,el.width,el.height);
+  const ph=state.photos[d];
+  if(ph&&ph.generated){ g.fillStyle='#c9c9c9'; g.fillRect(0,0,el.width,el.height); const s=Math.min(el.width/ph.work.width,el.height/ph.work.height); g.drawImage(ph.work,(el.width-ph.work.width*s)/2,(el.height-ph.work.height*s)/2,ph.work.width*s,ph.work.height*s); }
+  else if(rig.V&&state.manq.head[d]) g.drawImage(renderGuide(d,el.width,el.height,'#2a2c33'),0,0);
+}
+function refreshGenUI(){ for(let d=0;d<8;d++){ drawGenThumb(d); const st=state.gen.status[d]; if(st) setGenStatus(d,st.cls,st.txt); else if(state.photos[d]&&state.photos[d].generated) setGenStatus(d,'done','✓ rendered'); else setGenStatus(d,'',''); } renderRefs(); }
+window.refreshGenUI=refreshGenUI;
+function setBusy(delta){ state.gen.busy+=delta; $('#genStop').disabled=state.gen.busy<=0; $('#genAll').disabled=state.gen.busy>0; }
+async function genView(d){
+  if(d!==0&&!state.gen.ref){ genLog('Making the front (S) view first, as the identity reference'); await genView(0); }
+  setBusy(1); setGenStatus(d,'working','rendering…'); genLog(`${DIRS[d].id}: rendering full body`);
+  try{
+    const tr=$('#genTransparent').checked, imgs=[canvasPart(renderGuide(d),'png')], hasRef=d!==0&&!!state.gen.ref;
+    if(hasRef) imgs.push(canvasPart(flatCanvas(state.gen.ref,1024,'#c9c9c9').c,'jpeg'));
+    for(const r of state.gen.userRefs) imgs.push(canvasPart(flatCanvas(r,1024,'#ffffff').c,'jpeg'));
+    const out=await oaImage({prompt:viewPrompt(d,hasRef,state.gen.userRefs.length,tr),images:imgs,transparent:tr,size:'1024x1536'});
+    const c=cleanResult(await canvasFromDataURL('data:image/png;base64,'+out.b64));
+    if(d===0) state.gen.ref=cloneCanvas(c);
+    setPhoto(d,c); state.photos[d].generated=true; drawGenThumb(d);
+    if($('#genVision').checked&&getKey()){ setGenStatus(d,'working','finding joints…'); try{ const n=await detectJoints(d); genLog(`${DIRS[d].id}: placed ${n}/21 joints`); }catch(e){ genLog(`${DIRS[d].id}: joint refine skipped (${e.message})`); } }
+    if($('#genAutoCut').checked){ cutPhoto(d,false); }
+    syncPhotoUI(); if(state.photoDir===d) drawCut();
+    setGenStatus(d,'done',$('#genAutoCut').checked?'✓ cut into parts':'✓ rendered'); genLog(`${DIRS[d].id}: done`); scheduleSave();
+  }catch(e){ setGenStatus(d,'err',e.message); genLog(`${DIRS[d].id}: ${e.message}`); if(d===0) throw e; }
+  finally{ setBusy(-1); }
+}
+async function runPool(tasks,n){ let i=0; await Promise.all(Array.from({length:n},async()=>{ while(i<tasks.length&&!state.gen.stop){ const t=tasks[i++]; try{ await t(); }catch(e){} } })); }
+async function generatePart(p,d){
+  const m=state.manq[p][d], mW=m.canvas.width, mH=m.canvas.height, S=1024;
+  const guide=document.createElement('canvas'); guide.width=S; guide.height=S; const g=guide.getContext('2d'); g.fillStyle='#c9c9c9'; g.fillRect(0,0,S,S);
+  const gs=Math.min(S*.62/mW,S*.62/mH); g.imageSmoothingQuality='high'; g.drawImage(m.canvas,S/2-mW*gs/2,S/2-mH*gs/2,mW*gs,mH*gs);
+  const tr=$('#genTransparent').checked, imgs=[canvasPart(guide,'png')], hasRef=!!state.gen.ref;
+  if(hasRef) imgs.push(canvasPart(flatCanvas(state.gen.ref,1024,'#c9c9c9').c,'jpeg'));
+  for(const r of state.gen.userRefs) imgs.push(canvasPart(flatCanvas(r,1024,'#ffffff').c,'jpeg'));
+  genLog(`${PART_LABEL[p]} ${DIRS[d].id}: rendering`);
+  const out=await oaImage({prompt:partPrompt(p,d,hasRef,state.gen.userRefs.length,tr),images:imgs,transparent:tr,size:'1024x1024'});
+  const c=cleanResult(await canvasFromDataURL('data:image/png;base64,'+out.b64));
+  const bb=alphaBBox(c), pad=4, x0=Math.max(0,bb.x0-pad), y0=Math.max(0,bb.y0-pad), x1=Math.min(c.width,bb.x1+pad), y1=Math.min(c.height,bb.y1+pad);
+  const crop=document.createElement('canvas'); crop.width=Math.max(2,x1-x0); crop.height=Math.max(2,y1-y0); crop.getContext('2d').drawImage(c,-x0,-y0);
+  const f=c.width/S, ccx=(x0+x1)/2, ccy=(y0+y1)/2, mcx=(ccx/f-S/2)/gs, mcy=(ccy/f-S/2)/gs;
+  state.slots[p][d]={src:'gen',canvas:crop,x:m.x+mcx*m.scale,y:m.y+mcy*m.scale,scale:m.scale/(gs*f),rot:0};
+  refreshThumb(p,d); updateCoverage(); genLog(`${PART_LABEL[p]} ${DIRS[d].id}: done`);
+}
+function renderRefs(){
+  $('#refs').innerHTML=''; state.gen.userRefs.forEach((c,i)=>{ const w=document.createElement('div'); const t=document.createElement('canvas'); t.width=128;t.height=128; const g=t.getContext('2d'); const s=Math.max(128/c.width,128/c.height); g.drawImage(c,(128-c.width*s)/2,(128-c.height*s)/2,c.width*s,c.height*s);
+    const b=document.createElement('button'); b.textContent='✕'; b.onclick=()=>{state.gen.userRefs.splice(i,1);renderRefs();scheduleSave();}; w.appendChild(t); w.appendChild(b); $('#refs').appendChild(w); });
+}
+function buildGen(){
+  $('#genViews').innerHTML=DIRS.map((d,i)=>`<div class="gv" data-d="${i}"><canvas width="120" height="180"></canvas><b>${d.id}</b><div class="st"></div><button class="btn sm" data-g="${i}">✦ Render</button></div>`).join('');
+  $('#genViews').querySelectorAll('[data-g]').forEach(b=>b.onclick=async()=>{ state.gen.stop=false; try{ await genView(+b.dataset.g); }catch(e){ toast(e.message,4500); } });
+  $('#genViews').querySelectorAll('canvas').forEach((c,i)=>c.onclick=()=>{ if(state.photos[i]){ state.photoDir=i; document.querySelector('#tabs button[data-t=photo]').click(); syncPhotoUI(); drawCut(); } });
+  $('#apiKey').value=getKey()?'••••••••••••'+getKey().slice(-4):''; $('#keyStatus').textContent=getKey()?'key saved':'';
+  $('#imgModel').value=prefGet('img_model','gpt-image-1.5'); $('#visModel').value=prefGet('vis_model','gpt-4.1'); $('#imgQuality').value=prefGet('img_quality','high');
+  $('#imgModel').onchange=e=>prefSet('img_model',e.target.value.trim()); $('#visModel').onchange=e=>prefSet('vis_model',e.target.value.trim()); $('#imgQuality').onchange=e=>prefSet('img_quality',e.target.value);
+  $('#apiKey').onfocus=e=>{ if(e.target.value.startsWith('••')) e.target.value=''; };
+  $('#saveKey').onclick=()=>{ const v=$('#apiKey').value.trim(); if(!v||v.startsWith('••')){toast('Paste your key first');return;} prefSet('openai_key',v); $('#apiKey').value='••••••••••••'+v.slice(-4); $('#keyStatus').textContent='key saved'; updateAiJointsBtn(); toast('Key saved on this device'); };
+  $('#testKey').onclick=async()=>{
+    const v=$('#apiKey').value.trim(); if(v&&!v.startsWith('••')) prefSet('openai_key',v); const key=getKey(); if(!key){toast('Paste your key first');return;}
+    $('#keyStatus').textContent='checking…'; const r=await httpReq({url:'https://api.openai.com/v1/models',method:'GET',headers:{Authorization:'Bearer '+key}});
+    if(r.status!==200){ $('#keyStatus').textContent='✕ '+apiErr(r).slice(0,80); return; }
+    let ids=[]; try{ ids=JSON.parse(r.body).data.map(x=>x.id); }catch(e){}
+    const img=ids.filter(i=>/image/i.test(i)&&!/dall-e-2/.test(i)).sort(), vis=ids.filter(i=>/^(gpt-4|gpt-5|o\d)/.test(i)&&!/image|audio|realtime|transcribe|tts|search/.test(i)).sort();
+    if(img.length) $('#imgModels').innerHTML=img.map(i=>`<option value="${i}">`).join(''); if(vis.length) $('#visModels').innerHTML=vis.map(i=>`<option value="${i}">`).join('');
+    $('#keyStatus').textContent=`✓ key works · ${img.length} image model${img.length===1?'':'s'}`; $('#apiKey').value='••••••••••••'+key.slice(-4); updateAiJointsBtn();
+  };
+  $('#addRef').onclick=()=>$('#refFile').click();
+  $('#refFile').onchange=async e=>{ const f=e.target.files[0]; e.target.value=''; if(!f) return; if(state.gen.userRefs.length>=3){toast('Up to 3 reference images');return;} try{ state.gen.userRefs.push(await loadImageFile(f,1024)); renderRefs(); scheduleSave(); }catch(err){toast(err.message);} };
+  $('#genAll').onclick=async()=>{
+    if(!getKey()){toast('Add your OpenAI API key first');return;} if(!(state.desc||'').trim()&&!state.gen.userRefs.length){toast('Describe the character (or add a reference image) first');return;}
+    state.gen.stop=false; genLog('Rendering 8 views (S first, then the rest two at a time)');
+    try{ await genView(0); }catch(e){ toast(e.message,5000); return; }
+    await runPool([1,2,3,4,5,6,7].map(d=>()=>genView(d)),2);
+    if(!state.gen.stop){ toast('All 8 views rendered and cut into parts'); state.view.mode='grid'; setViewMode('grid'); }
+  };
+  $('#genStop').onclick=()=>{ state.gen.stop=true; genLog('Stopping after the current requests…'); };
+  $('#gpPart').innerHTML='<option value="*">All 16 parts</option>'+PARTS.map(([k,l])=>`<option value="${k}">${l}</option>`).join('');
+  $('#gpDir').innerHTML='<option value="*">All 8 directions</option>'+DIRS.map((d,i)=>`<option value="${i}">${d.id} · ${d.name}</option>`).join('');
+  const gpCount=()=>{ const n=($('#gpPart').value==='*'?16:1)*($('#gpDir').value==='*'?8:1); $('#gpGo').textContent=`✦ Generate ${n} image${n>1?'s':''}`; return n; };
+  $('#gpPart').onchange=gpCount; $('#gpDir').onchange=gpCount; gpCount();
+  $('#gpGo').onclick=async e=>{
+    if(!getKey()){toast('Add your OpenAI API key first');return;}
+    const n=gpCount(); const go=async()=>{
+      const parts=$('#gpPart').value==='*'?PART_IDS:[$('#gpPart').value], dirs=$('#gpDir').value==='*'?[0,1,2,3,4,5,6,7]:[+$('#gpDir').value];
+      state.gen.stop=false; setBusy(1); const tasks=[]; for(const d of dirs) for(const p of parts) tasks.push(()=>generatePart(p,d).catch(err=>{genLog(`${PART_LABEL[p]} ${DIRS[d].id}: ${err.message}`);}));
+      await runPool(tasks,2); setBusy(-1); toast('Part generation finished'); };
+    if(n>8) confirmTap(e.target,go); else go();
+  };
+  $('#seGen').onclick=async()=>{ if(!getKey()){toast('Add your OpenAI API key in the Generate tab');return;} const b=$('#seGen'); b.disabled=true; b.textContent='✦ Rendering…'; state.gen.stop=false;
+    try{ await generatePart(se.part,se.d); syncSeSliders(); drawSe(); toast('Part rendered and fitted'); }catch(err){ toast(err.message,4500); } b.disabled=false; b.textContent='✦ Generate this part'; };
+  updateAiJointsBtn(); refreshGenUI();
+}
+window.__onBack=()=>{ for(const id of ['#slotModal','#outModal']) if($(id).classList.contains('on')){ $(id).classList.remove('on'); return true; } return false; };
+/* ======================= boot ======================= */
+(async function boot(){
+  buildGrid(); buildPhotoDirs(); buildProps(); buildPoseUI(); renderKeys(); fillClipSelect(); buildClipChecks();
+  rebuildRig(); sizePreview(); requestAnimationFrame(drawPreview);
+  let restored=false;
+  try{ const saved=await idbGet('project'); if(saved){ await deserialize(saved); restored=true; $('#restoreBanner').classList.add('on'); } }catch(e){}
+  if(!restored){ syncCharUI(); await renderMannequin(); }
+  syncPoseSliders(); buildGen(); booted=true; updateCoverage(); drawCut();
+  window.__ready=true;
+})();
+</script>
+</body>
+</html>

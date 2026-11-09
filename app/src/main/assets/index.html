@@ -137,6 +137,7 @@ input[list]{width:100%;background:var(--panel2);border:1px solid var(--line);bor
 
     <!-- GENERATE -->
     <div class="panel on" id="p-gen">
+      <div id="oaSection">
       <h3>OpenAI connection</h3>
       <div class="card">
         <input type="password" id="apiKey" placeholder="OpenAI API key (sk-…)" autocomplete="off">
@@ -149,6 +150,7 @@ input[list]{width:100%;background:var(--panel2);border:1px solid var(--line);bor
         <label class="check"><input type="checkbox" id="genTransparent" checked> ask for transparent backgrounds (if the model refuses, the app removes the background itself)</label>
         <p class="hint">Your key is stored only on this phone and is sent only to api.openai.com. OpenAI bills your account for each image.</p>
       </div>
+      </div>
       <h3>Character</h3>
       <div class="card">
         <input type="text" id="genName" placeholder="Character name">
@@ -157,6 +159,18 @@ input[list]{width:100%;background:var(--panel2);border:1px solid var(--line);bor
         <div class="row" style="margin-top:8px"><button class="btn" id="addRef">Add reference image…</button><input type="file" id="refFile" accept="image/*" hidden><span class="hint">optional: a face, outfit or concept art to match</span></div>
         <div class="refs" id="refs"></div>
       </div>
+      <h3>✦ Claude draws the parts</h3>
+      <div class="card" id="claudeCard">
+        <p class="hint" id="claudeNote">Claude paints every body part as detailed vector art, shaped to the matching mannequin part and lit the same way, then drops it into the rig. The result is illustrated (painted), not photographic.</p>
+        <div class="field"><label>Detail</label><select id="cdTier"><option value="quick">Fast sketch</option><option value="default" selected>Detailed</option><option value="complex">Most detailed (slowest)</option></select><span></span></div>
+        <div class="row"><button class="btn" id="cdStyle">1 · Write style sheet</button><span class="hint">Claude turns your description into a palette and per-part materials so all parts match. You can edit it.</span></div>
+        <textarea id="styleSheet" placeholder="The style sheet appears here. Edit freely: every part drawing follows it." style="margin-top:8px;min-height:110px;font:12px 'JetBrains Mono',monospace"></textarea>
+        <div class="field"><label>Part</label><select id="cdPart"></select><span></span></div>
+        <div class="field"><label>Direction</label><select id="cdDir"></select><span></span></div>
+        <label class="check"><input type="checkbox" id="cdMirror" checked> mirror E/SE/NE onto W/SW/NW (fewer drawings; turn off for asymmetric outfits)</label>
+        <div class="row" style="margin-top:8px"><button class="btn pri" id="cdGo">2 · ✦ Draw parts</button><button class="btn" id="cdStop" disabled>Stop</button><span class="status" id="cdProg"></span></div>
+      </div>
+      <div id="oaGenSection">
       <h3>Full-body renders: all 8 directions</h3>
       <div class="card">
         <p class="hint">Each view is rendered over the mannequin in the exact rig pose and camera angle, so it lines up with the skeleton. The front (S) view is made first and is used as the identity reference for the other 7. Each finished view is cut into all 16 parts automatically.</p>
@@ -174,8 +188,9 @@ input[list]{width:100%;background:var(--panel2);border:1px solid var(--line);bor
         <div class="field"><label>Part</label><select id="gpPart"></select><span></span></div>
         <div class="field"><label>Direction</label><select id="gpDir"></select><span></span></div>
         <button class="btn pri" id="gpGo">✦ Generate</button>
-        <div id="genLog"></div>
       </div>
+      </div>
+      <div id="genLog"></div>
     </div>
 
     <!-- PARTS -->
@@ -396,7 +411,7 @@ const state = {
   pitch:0, tint:'#c8a58a', res:360, name:'', desc:'', bg:'plain light grey',
   slots:{}, manq:{}, photos:{}, custom:{keys:[],dur:1.2},
   view:{mode:'grid',dir:0,clip:'walk',speed:1,playing:true,skeleton:false},
-  gen:{ref:null,userRefs:[],busy:0,stop:false,status:{}},
+  gen:{ref:null,userRefs:[],busy:0,stop:false,status:{},style:''},
   editPose:{j:{},off:[0,0,0]}, poseMode:false, selJoint:'shoulderR', photoDir:0
 };
 PART_IDS.forEach(p=>{state.slots[p]=new Array(8).fill(null);state.manq[p]=new Array(8).fill(null);});
@@ -1132,7 +1147,7 @@ $('#exRig').onclick=async()=>{
 function serialize(){
   const slots={}; for(const p of PART_IDS){ slots[p]=state.slots[p].map(s=>!s||s.src==='mannequin'?null:{src:s.src,x:s.x,y:s.y,scale:s.scale,rot:s.rot,data:s.canvas.toDataURL('image/png')}); }
   const photos={}; for(const d in state.photos){const ph=state.photos[d]; if(ph) photos[d]={orig:ph.orig.toDataURL('image/jpeg',.9),work:ph.work.toDataURL('image/png'),joints:ph.joints,width:ph.width,cutDone:ph.cutDone,generated:!!ph.generated};}
-  const gen={ref:state.gen.ref?state.gen.ref.toDataURL('image/png'):null,userRefs:state.gen.userRefs.map(c=>c.toDataURL('image/jpeg',.9))};
+  const gen={style:state.gen.style||'',ref:state.gen.ref?state.gen.ref.toDataURL('image/png'):null,userRefs:state.gen.userRefs.map(c=>c.toDataURL('image/jpeg',.9))};
   return JSON.stringify({format:'sprite-puppet-project/1',gen,P:state.P,pitch:state.pitch,tint:state.tint,res:state.res,name:state.name,desc:state.desc,custom:state.custom,slots,photos});
 }
 async function deserialize(txt){
@@ -1142,6 +1157,7 @@ async function deserialize(txt){
   for(const p of PART_IDS) state.slots[p]=new Array(8).fill(null);
   for(const p of PART_IDS) for(let d=0;d<8;d++){ const s=o.slots&&o.slots[p]&&o.slots[p][d]; if(s){ state.slots[p][d]={src:s.src,x:s.x,y:s.y,scale:s.scale,rot:s.rot,canvas:await canvasFromDataURL(s.data)}; } }
   state.photos={}; for(const d in (o.photos||{})){ const ph=o.photos[d]; state.photos[d]={orig:await canvasFromDataURL(ph.orig),work:await canvasFromDataURL(ph.work),joints:ph.joints,width:ph.width,cutDone:ph.cutDone,generated:!!ph.generated}; }
+  state.gen.style=(o.gen&&o.gen.style)||''; if($('#styleSheet')) $('#styleSheet').value=state.gen.style;
   state.gen.ref=o.gen&&o.gen.ref?await canvasFromDataURL(o.gen.ref):null; state.gen.userRefs=[]; for(const u of ((o.gen&&o.gen.userRefs)||[])) state.gen.userRefs.push(await canvasFromDataURL(u));
   renderKeys(); await renderMannequin(); syncPhotoUI(); drawCut(); if(window.refreshGenUI) refreshGenUI();
 }
@@ -1339,9 +1355,107 @@ function buildGen(){
       await runPool(tasks,2); setBusy(-1); toast('Part generation finished'); };
     if(n>8) confirmTap(e.target,go); else go();
   };
-  $('#seGen').onclick=async()=>{ if(!getKey()){toast('Add your OpenAI API key in the Generate tab');return;} const b=$('#seGen'); b.disabled=true; b.textContent='✦ Rendering…'; state.gen.stop=false;
-    try{ await generatePart(se.part,se.d); syncSeSliders(); drawSe(); toast('Part rendered and fitted'); }catch(err){ toast(err.message,4500); } b.disabled=false; b.textContent='✦ Generate this part'; };
+  $('#seGen').onclick=async()=>{ const useClaude=!!sampleCap&&!(NATIVE&&getKey()); if(!useClaude&&!getKey()){toast(NATIVE?'Add your OpenAI API key in the Generate tab':'Claude drawing is starting up, try again in a moment');return;} const b=$('#seGen'); b.disabled=true; b.textContent='✦ Rendering…'; state.gen.stop=false;
+    try{ await (useClaude?claudeDrawPart(se.part,se.d):generatePart(se.part,se.d)); syncSeSliders(); drawSe(); toast('Part rendered and fitted'); }catch(err){ toast(err.message,4500); } b.disabled=false; b.textContent=NATIVE?'✦ Generate this part':'✦ Claude: draw this part'; };
   updateAiJointsBtn(); refreshGenUI();
+  if(!NATIVE) $('#seGen').textContent='✦ Claude: draw this part';
+}
+
+/* ======================= Claude draws parts (claude.ai "sample") ======================= */
+function sanitizeSVG(txt,W,H,k){
+  const m=String(txt).match(/<svg[\s\S]*<\/svg>/i); if(!m) throw new Error('No SVG in the reply');
+  let svg=m[0].replace(/<script[\s\S]*?<\/script>/gi,'').replace(/<foreignObject[\s\S]*?<\/foreignObject>/gi,'').replace(/\son\w+\s*=\s*("[^"]*"|'[^']*')/gi,'').replace(/(xlink:)?href\s*=\s*("https?:[^"]*"|'https?:[^']*')/gi,'');
+  svg=svg.replace(/<svg\b([^>]*)>/i,(all,attrs)=>{ attrs=attrs.replace(/\s(width|height)\s*=\s*("[^"]*"|'[^']*')/gi,''); if(!/viewBox/i.test(attrs)) attrs+=` viewBox="0 0 ${W} ${H}"`; if(!/xmlns=/.test(attrs)) attrs+=' xmlns="http://www.w3.org/2000/svg"'; if(/xlink:/.test(svg)&&!/xmlns:xlink/.test(attrs)) attrs+=' xmlns:xlink="http://www.w3.org/1999/xlink"'; return `<svg${attrs} width="${W*k}" height="${H*k}">`; });
+  return svg;
+}
+function svgToCanvas(svg,W,H,k){
+  return new Promise((res,rej)=>{ const im=new Image(); im.onload=()=>{ const c=document.createElement('canvas'); c.width=Math.round(W*k); c.height=Math.round(H*k); c.getContext('2d').drawImage(im,0,0,c.width,c.height); res(c); };
+    im.onerror=()=>rej(new Error('Claude\'s SVG could not be drawn')); im.src='data:image/svg+xml;charset=utf-8,'+encodeURIComponent(svg); });
+}
+async function claudeCall(prompt,opts={}){
+  for(let attempt=0;attempt<3;attempt++){
+    if(state.gen.stop) throw new Error('Stopped');
+    try{ return await sampleCap(prompt,{modelTier:$('#cdTier').value,cache:false,...opts}); }
+    catch(e){ if(e&&e.code==='rate_limited'&&attempt<2){ genLog('Claude is busy, waiting 20 s…'); await sleep(20000); continue; } throw e; }
+  }
+}
+$('#cdStyle').onclick=async()=>{
+  if(!sampleCap){toast('Claude drawing works on the claude.ai page');return;}
+  const desc=(state.desc||'').trim(); if(!desc&&!state.gen.userRefs.length){toast('Describe the character (or add a reference image) first');return;}
+  const b=$('#cdStyle'); b.disabled=true; b.textContent='Writing…';
+  try{
+    const imgs=[]; for(const r of state.gen.userRefs) imgs.push(await new Promise(rs=>flatCanvas(r,1024,'#ffffff').c.toBlob(rs,'image/jpeg',.9)));
+    const prompt=`You are the art director for a 2D game character that will be painted as 16 separate cut-out body parts (head, neck, torso, pelvis, left/right upper arms, forearms, hands, thighs, calves, feet), each from 8 directions. Write a compact style sheet so every part is painted consistently.
+Character: ${desc||'(see the reference images)'}${imgs.length?`\n${imgs.length} reference image${imgs.length>1?'s are':' is'} attached: match ${imgs.length>1?'them':'it'}.`:''}
+Format (plain text, no markdown headings, under 1600 characters):
+PALETTE: named hex colours for skin (base/shadow/highlight), hair, eyes, and each clothing material (base/shadow/highlight).
+HEAD: face, hair style, headwear, from front, side and back.
+NECK: …  TORSO: …  PELVIS: …  UPPER ARMS: …  FOREARMS: …  HANDS: …  THIGHS: …  CALVES: …  FEET: …
+Each region line: what covers it (garment, material, details like seams, buttons, buckles, wear) and any left/right differences.
+RENDERING: one line on the painting style (soft painterly realism, light from upper left).`;
+    const r=await claudeCall(prompt,imgs.length?{images:imgs}:{}); $('#styleSheet').value=(r.text||'').trim(); state.gen.style=$('#styleSheet').value; scheduleSave(); toast('Style sheet ready: edit it if you like, then draw parts');
+  }catch(e){ toast(e.code==='not_granted'?'Allow Claude access to use this':'Style sheet failed: '+(e.message||e.code),4500); }
+  b.disabled=false; b.textContent='1 · Write style sheet';
+};
+$('#styleSheet').oninput=e=>{state.gen.style=e.target.value;scheduleSave();};
+function partJointPx(p,d){
+  const m=state.manq[p][d], b=BONES[p], rp=rig.restProj[d], A=rp[b.a], B=rp[b.b], W=m.canvas.width, H=m.canvas.height;
+  const px=q=>[Math.round((q.x-A.x-m.x)/m.scale+W/2),Math.round((q.y-A.y-m.y)/m.scale+H/2)];
+  return {W,H,a:px(A),b:px(B)};
+}
+const JOINT_NAME={neckTop:'base of the skull',headTop:'top of the head',neckBase:'base of the neck',waist:'waist',crotch:'crotch',shoulderL:'left shoulder',shoulderR:'right shoulder',elbowL:'left elbow',elbowR:'right elbow',wristL:'left wrist',wristR:'right wrist',handTipL:'left fingertips',handTipR:'right fingertips',hipL:'left hip',hipR:'right hip',kneeL:'left knee',kneeR:'right knee',ankleL:'left ankle',ankleR:'right ankle',toeL:'left toe tip',toeR:'right toe tip'};
+function claudePartPrompt(p,d,g){
+  const b=BONES[p], id=DIRS[d].id;
+  const face = p==='head' ? (id==='N'?' We see the back of the head: hair, no face.':/^(NE|NW)$/.test(id)?' We see mostly the back of the head, with only the edge of the cheek and ear.':/^(E|W)$/.test(id)?` Exact profile: the face points toward the ${id==='E'?'right':'left'} edge of the image.`:/^(SE|SW)$/.test(id)?` Three-quarter view: the face is turned toward the ${id==='SE'?'right':'left'} of the image.`:' Front view: the face looks straight out of the image.') : '';
+  return `You are a skilled digital painter drawing ONE cut-out body part for a 2D game puppet, as a single SVG.
+CHARACTER: ${(state.desc||'').trim()||'see the style sheet'}
+STYLE SHEET (follow it exactly for colours and materials):
+${(state.gen.style||'').trim()||'(none: choose a fitting, consistent palette)'}
+PART: ${partDesc(p)}${face}
+VIEW: ${VIEW_TEXT[id]}
+GEOMETRY: The attached image is the plain wooden-mannequin version of this exact part, ${g.W}x${g.H} px on a transparent background. Use viewBox="0 0 ${g.W} ${g.H}" and paint over the same silhouette: same position, angle and size, following its outline (clothing may extend up to ~10% beyond it). The ${JOINT_NAME[b.a]} is at (${g.a[0]}, ${g.a[1]}) and the ${JOINT_NAME[b.b]} at (${g.b[0]}, ${g.b[1]}). Let the part run slightly past each joint with a rounded end, so seams stay hidden when the puppet bends.
+LIGHT: soft key light from the upper left and slightly in front; gentle fill; darker toward the right and back.
+RENDERING: painted, near-realistic. Build form with layered linear and radial gradients, soft highlights, ambient-occlusion darkening at edges and creases, fabric folds, seams, stitching, buttons or buckles, subtle skin tone variation. You may use one <filter> with feTurbulence for subtle texture. No thick outlines, no text, no background rectangle, nothing outside the part.
+Reply with ONLY the SVG code, starting with <svg and ending with </svg>, under 9000 characters.`;
+}
+async function claudeDrawPart(p,d){
+  if(!sampleCap) throw new Error('Claude drawing works on the claude.ai page');
+  const m=state.manq[p][d], g=partJointPx(p,d), K=3;
+  const blob=await new Promise(r=>m.canvas.toBlob(r,'image/png'));
+  let r=await claudeCall(claudePartPrompt(p,d,g),{images:[blob]});
+  if(r.truncated||!/<\/svg>/i.test(r.text||'')){ genLog(`${PART_LABEL[p]} ${DIRS[d].id}: reply cut off, asking for a shorter drawing`); r=await claudeCall(claudePartPrompt(p,d,g).replace('under 9000 characters','under 5000 characters (simpler shapes)'),{images:[blob]}); }
+  const c=await svgToCanvas(sanitizeSVG(r.text,g.W,g.H,K),g.W,g.H,K);
+  state.slots[p][d]={src:'gen',canvas:c,x:m.x,y:m.y,scale:m.scale/K,rot:0};
+  refreshThumb(p,d); updateCoverage();
+}
+function cdCount(){
+  const parts=$('#cdPart').value==='*'?PART_IDS.length:1, dirs=$('#cdDir').value==='*'?($('#cdMirror').checked?5:8):1;
+  const n=parts*dirs; $('#cdGo').textContent=`2 · ✦ Draw ${n} part${n>1?'s':''}`; return n;
+}
+function buildClaudeGen(){
+  $('#cdPart').innerHTML='<option value="*">All 16 parts</option>'+PARTS.map(([k,l])=>`<option value="${k}">${l}</option>`).join('');
+  $('#cdDir').innerHTML='<option value="*">All 8 directions</option>'+DIRS.map((d,i)=>`<option value="${i}">${d.id} · ${d.name}</option>`).join('');
+  $('#cdPart').onchange=cdCount; $('#cdDir').onchange=cdCount; $('#cdMirror').onchange=cdCount; cdCount();
+  $('#styleSheet').value=state.gen.style||'';
+  $('#cdGo').onclick=async e=>{
+    if(!sampleCap){toast('Claude drawing works on the claude.ai page');return;}
+    if(!(state.desc||'').trim()&&!(state.gen.style||'').trim()){toast('Describe the character or write a style sheet first');return;}
+    const go=async()=>{
+      const parts=$('#cdPart').value==='*'?PART_IDS:[$('#cdPart').value], mir=$('#cdMirror').checked;
+      let dirs=$('#cdDir').value==='*'?[0,1,2,3,4,5,6,7]:[+$('#cdDir').value];
+      const mirrored=[]; if(mir){ const all=dirs.slice(); dirs=all.filter(d=>{ if(!/^(W|SW|NW)$/.test(DIRS[d].id)) return true; const src=DIR_IDX[MIRROR[DIRS[d].id]];
+        const skip=all.includes(src)||parts.every(p=>{const s=state.slots[swapLR(p)][src];return s&&s.src==='gen';}); if(skip) mirrored.push(d); return !skip; }); }
+      state.gen.stop=false; $('#cdStop').disabled=false; $('#cdGo').disabled=true; let done=0, fail=0; const total=parts.length*dirs.length;
+      const tasks=[]; for(const d of dirs) for(const p of parts) tasks.push(async()=>{ try{ await claudeDrawPart(p,d); done++; }catch(err){ fail++; genLog(`${PART_LABEL[p]} ${DIRS[d].id}: ${err.message||err.code}`); if(err.code==='not_granted') state.gen.stop=true; } $('#cdProg').textContent=`${done}/${total} drawn${fail?` · ${fail} failed`:''}`; });
+      $('#cdProg').textContent=`0/${total} drawn`; await runPool(tasks,2);
+      if(mir) for(const d of mirrored) for(const p of parts){ const cur=state.slots[p][d], src=state.slots[swapLR(p)][DIR_IDX[MIRROR[DIRS[d].id]]]; if(src&&src.src==='gen'&&(!cur||cur.src==='mannequin'||cur.src==='mirror'||cur.src==='gen')){ mirrorInto(p,d); refreshThumb(p,d); } }
+      updateCoverage(); $('#cdStop').disabled=true; $('#cdGo').disabled=false; toast(state.gen.stop?'Stopped':`Claude drew ${done} part${done===1?'':'s'}${fail?`, ${fail} failed (see log)`:''}`,4000);
+    };
+    if(cdCount()>8) confirmTap(e.target,go); else go();
+  };
+  $('#cdStop').onclick=()=>{state.gen.stop=true;genLog('Stopping after the current drawings…');};
+  const web=!NATIVE; $('#oaSection').style.display=web?'none':''; $('#oaGenSection').style.display=web?'none':'';
+  if(NATIVE){ $('#claudeCard').querySelectorAll('button,select,textarea,input').forEach(x=>x.disabled=true); $('#claudeNote').textContent='Claude drawing runs on the claude.ai version of this app (it uses your Claude plan). In the Android app, use the OpenAI renders below.'; }
 }
 window.__onBack=()=>{ for(const id of ['#slotModal','#outModal']) if($(id).classList.contains('on')){ $(id).classList.remove('on'); return true; } return false; };
 /* ======================= boot ======================= */
@@ -1351,7 +1465,7 @@ window.__onBack=()=>{ for(const id of ['#slotModal','#outModal']) if($(id).class
   let restored=false;
   try{ const saved=await idbGet('project'); if(saved){ await deserialize(saved); restored=true; $('#restoreBanner').classList.add('on'); } }catch(e){}
   if(!restored){ syncCharUI(); await renderMannequin(); }
-  syncPoseSliders(); buildGen(); booted=true; updateCoverage(); drawCut();
+  syncPoseSliders(); buildGen(); buildClaudeGen(); booted=true; updateCoverage(); drawCut();
   window.__ready=true;
 })();
 </script>
